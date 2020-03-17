@@ -63,6 +63,14 @@ module.exports = {
         return require('./members');
     },
 
+    get member_signin_urls() {
+        return require('./member-signin_urls');
+    },
+
+    get identities() {
+        return require('./identities');
+    },
+
     get images() {
         return require('./images');
     },
@@ -101,5 +109,17 @@ module.exports = {
 
     get site() {
         return require('./site');
+    },
+
+    get email_preview() {
+        return require('./email-preview');
+    },
+
+    get emails() {
+        return require('./emails');
+    },
+
+    get labels() {
+        return require('./labels');
     }
 };

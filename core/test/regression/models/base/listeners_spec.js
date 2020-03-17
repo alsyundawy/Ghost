@@ -20,7 +20,7 @@ describe('Models: listeners', function () {
             publishedAtFutureMoment3: moment().add(10, 'hours').startOf('hour')
         };
 
-    before(testUtils.teardown);
+    before(testUtils.teardownDb);
 
     beforeEach(testUtils.setup('owner', 'settings'));
 
@@ -36,7 +36,7 @@ describe('Models: listeners', function () {
         common.events.on.restore();
         sinon.restore();
         scope.posts = [];
-        return testUtils.teardown();
+        return testUtils.teardownDb();
     });
 
     describe('on timezone changed', function () {
@@ -246,67 +246,6 @@ describe('Models: listeners', function () {
                         })
                         .catch(done);
                 })();
-            });
-
-            it('collision: ensure the listener always succeeds', function (done) {
-                var timeout,
-                    interval,
-                    post1 = posts[0],
-                    listenerHasFinished = false;
-
-                sinon.spy(models.Post, 'findAll');
-
-                // simulate a delay, so that the edit operation from the test here interrupts
-                // the goal here is to force that the listener has old post data, updated_at is then too old
-                // e.g. user edits while listener is active
-                listeners.__set__('sequence', function overrideSequence() {
-                    var self = this,
-                        args = arguments;
-
-                    return Promise.delay(300)
-                        .then(function () {
-                            return sequence.apply(self, args)
-                                .finally(function () {
-                                    setTimeout(function () {
-                                        listenerHasFinished = true;
-                                    }, 50);
-                                });
-                        });
-                });
-
-                scope.timezoneOffset = moment.tz.zone('Asia/Baghdad').utcOffset(now) - moment.tz.zone('Etc/UTC').utcOffset(now);
-                scope.oldTimezone = 'Asia/Baghdad';
-                scope.newTimezone = 'Etc/UTC';
-
-                eventsToRemember['settings.active_timezone.edited']({
-                    attributes: {value: scope.newTimezone},
-                    _previousAttributes: {value: scope.oldTimezone}
-                });
-
-                models.Post.findAll.calledOnce.should.eql(false);
-
-                // set a little timeout to ensure the listener fetched posts from the database and the updated_at difference
-                // is big enough to simulate the collision scenario
-                // if you remove the transaction from the listener, this test will fail and show a collision error
-                timeout = setTimeout(function () {
-                    clearTimeout(timeout);
-
-                    // ensure findAll was called in the listener
-                    // ensure findAll was called before user's edit operation
-                    models.Post.findAll.calledOnce.should.eql(true);
-
-                    // simulate a client updates the post during the listener activity
-                    models.Post.edit({title: 'a new title, yes!'}, _.merge({id: post1.id}, testUtils.context.internal))
-                        .then(function () {
-                            interval = setInterval(function () {
-                                if (listenerHasFinished) {
-                                    clearInterval(interval);
-                                    return done();
-                                }
-                            }, 100);
-                        })
-                        .catch(done);
-                }, 200);
             });
         });
 

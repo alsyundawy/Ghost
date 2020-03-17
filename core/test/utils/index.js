@@ -43,7 +43,7 @@ var Promise = require('bluebird'),
 
     mockNotExistingModule,
     unmockNotExistingModule,
-    teardown,
+    teardownDb,
     setup,
     truncate,
     createUser,
@@ -464,6 +464,12 @@ fixtures = {
         return Promise.map(DataGenerator.forKnex.api_keys, function (api_key) {
             return models.ApiKey.add(api_key, module.exports.context.internal);
         });
+    },
+
+    insertEmails: function insertEmails() {
+        return Promise.map(DataGenerator.forKnex.emails, function (email) {
+            return models.Email.add(email, module.exports.context.internal);
+        });
     }
 };
 
@@ -613,6 +619,9 @@ toDoList = {
     },
     api_keys: function insertApiKeys() {
         return fixtures.insertApiKeys();
+    },
+    emails: function insertEmails() {
+        return fixtures.insertEmails();
     }
 };
 
@@ -729,7 +738,7 @@ createPost = function createPost(options) {
  * Has to run in a transaction for MySQL, otherwise the foreign key check does not work.
  * Sqlite3 has no truncate command.
  */
-teardown = function teardown() {
+teardownDb = function teardownDb() {
     debug('Database teardown');
     urlService.softReset();
 
@@ -846,7 +855,7 @@ startGhost = function startGhost(options) {
     // truncate database and re-run fixtures
     // we have to ensure that some components in Ghost are reloaded
     if (ghostServer && ghostServer.httpServer && !options.forceStart) {
-        return teardown()
+        return teardownDb()
             .then(function () {
                 return knexMigrator.init({only: 2});
             })
@@ -921,6 +930,13 @@ startGhost = function startGhost(options) {
             settingsCache.shutdown();
             settingsCache.reset();
             return knexMigrator.init();
+        })
+        .then(function setPragma() {
+            if (config.get('database:client') === 'sqlite3') {
+                return db.knex.raw('PRAGMA journal_mode = TRUNCATE;');
+            } else {
+                return Promise.resolve();
+            }
         })
         .then(function initializeGhost() {
             urlService.resetGenerators();
@@ -1085,7 +1101,7 @@ module.exports = {
             }
         }
     },
-    teardown: teardown,
+    teardownDb: teardownDb,
     truncate: truncate,
     setup: setup,
     createUser: createUser,

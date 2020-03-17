@@ -43,7 +43,7 @@ describe('Members API', function () {
                 should.exist(jsonResponse);
                 should.exist(jsonResponse.members);
                 jsonResponse.members.should.have.length(1);
-                localUtils.API.checkResponse(jsonResponse.members[0], 'member');
+                localUtils.API.checkResponse(jsonResponse.members[0], 'member', 'stripe');
 
                 testUtils.API.isISO8601(jsonResponse.members[0].created_at).should.be.true();
                 jsonResponse.members[0].created_at.should.be.an.instanceof(String);
@@ -166,10 +166,61 @@ describe('Members API', function () {
                         should.exist(jsonResponse);
                         should.exist(jsonResponse.members);
                         jsonResponse.members.should.have.length(1);
-                        localUtils.API.checkResponse(jsonResponse.members[0], 'member');
+                        localUtils.API.checkResponse(jsonResponse.members[0], 'member', 'stripe');
                         jsonResponse.members[0].name.should.equal(memberChanged.name);
-                        jsonResponse.members[0].email.should.not.equal(memberChanged.email);
+                        jsonResponse.members[0].email.should.equal(memberChanged.email);
+                        jsonResponse.members[0].email.should.not.equal(memberToChange.email);
+                    });
+            });
+    });
+
+    // NOTE: this test should be enabled and expanded once test suite fully supports Stripe mocking
+    it.skip('Can set a "Complimentary" subscription', function () {
+        const memberToChange = {
+            name: 'Comped Member',
+            email: 'member2comp@test.com'
+        };
+
+        const memberChanged = {
+            comped: true
+        };
+
+        return request
+            .post(localUtils.API.getApiQuery(`members/`))
+            .send({members: [memberToChange]})
+            .set('Origin', config.get('url'))
+            .expect('Content-Type', /json/)
+            .expect('Cache-Control', testUtils.cacheRules.private)
+            .expect(201)
+            .then((res) => {
+                should.not.exist(res.headers['x-cache-invalidate']);
+                const jsonResponse = res.body;
+                should.exist(jsonResponse);
+                should.exist(jsonResponse.members);
+                jsonResponse.members.should.have.length(1);
+
+                return jsonResponse.members[0];
+            })
+            .then((newMember) => {
+                return request
+                    .put(localUtils.API.getApiQuery(`members/${newMember.id}/`))
+                    .send({members: [memberChanged]})
+                    .set('Origin', config.get('url'))
+                    .expect('Content-Type', /json/)
+                    .expect('Cache-Control', testUtils.cacheRules.private)
+                    .expect(200)
+                    .then((res) => {
+                        should.not.exist(res.headers['x-cache-invalidate']);
+
+                        const jsonResponse = res.body;
+
+                        should.exist(jsonResponse);
+                        should.exist(jsonResponse.members);
+                        jsonResponse.members.should.have.length(1);
+                        localUtils.API.checkResponse(jsonResponse.members[0], 'member', 'stripe');
+                        jsonResponse.members[0].name.should.equal(memberToChange.name);
                         jsonResponse.members[0].email.should.equal(memberToChange.email);
+                        jsonResponse.members[0].comped.should.equal(memberToChange.comped);
                     });
             });
     });
@@ -225,7 +276,7 @@ describe('Members API', function () {
             .then((res) => {
                 should.not.exist(res.headers['x-cache-invalidate']);
                 res.headers['content-disposition'].should.match(/Attachment;\sfilename="members/);
-                res.text.should.match(/id,email,name,note,created_at,deleted_at/);
+                res.text.should.match(/id,email,name,note,subscribed_to_emails,complimentary_plan,stripe_customer_id,created_at,deleted_at/);
                 res.text.should.match(/member1@test.com/);
                 res.text.should.match(/Mr Egg/);
             });
@@ -250,6 +301,77 @@ describe('Members API', function () {
                 jsonResponse.meta.stats.imported.should.equal(2);
                 jsonResponse.meta.stats.duplicates.should.equal(0);
                 jsonResponse.meta.stats.invalid.should.equal(0);
+            });
+    });
+
+    it('Can import CSV with minimum one field', function () {
+        return request
+            .post(localUtils.API.getApiQuery(`members/csv/`))
+            .attach('membersfile', path.join(__dirname, '/../../../../utils/fixtures/csv/valid-members-defaults.csv'))
+            .set('Origin', config.get('url'))
+            .expect('Content-Type', /json/)
+            .expect('Cache-Control', testUtils.cacheRules.private)
+            .expect(201)
+            .then((res) => {
+                should.not.exist(res.headers['x-cache-invalidate']);
+                const jsonResponse = res.body;
+
+                should.exist(jsonResponse);
+                should.exist(jsonResponse.meta);
+                should.exist(jsonResponse.meta.stats);
+
+                jsonResponse.meta.stats.imported.should.equal(2);
+                jsonResponse.meta.stats.duplicates.should.equal(0);
+                jsonResponse.meta.stats.invalid.should.equal(0);
+            })
+            .then(() => {
+                return request
+                    .get(localUtils.API.getApiQuery(`members/`))
+                    .set('Origin', config.get('url'))
+                    .expect('Content-Type', /json/)
+                    .expect('Cache-Control', testUtils.cacheRules.private)
+                    .expect(200);
+            })
+            .then((res) => {
+                should.not.exist(res.headers['x-cache-invalidate']);
+                const jsonResponse = res.body;
+
+                should.exist(jsonResponse);
+                should.exist(jsonResponse.members);
+
+                const defaultMember1 = jsonResponse.members.find(member => (member.email === 'member+defaults_1@example.com'));
+                should(defaultMember1.name).equal(null);
+                should(defaultMember1.note).equal(null);
+                defaultMember1.subscribed.should.equal(true);
+                defaultMember1.comped.should.equal(false);
+                defaultMember1.stripe.should.not.be.undefined();
+                defaultMember1.stripe.subscriptions.length.should.equal(0);
+                defaultMember1.labels.length.should.equal(0);
+
+                const defaultMember2 = jsonResponse.members.find(member => (member.email === 'member+defaults_2@example.com'));
+                should(defaultMember2).not.be.undefined();
+            });
+    });
+
+    it('Can import file with duplicate stripe customer ids', function () {
+        return request
+            .post(localUtils.API.getApiQuery(`members/csv/`))
+            .attach('membersfile', path.join(__dirname, '/../../../../utils/fixtures/csv/members-with-duplicate-stripe-ids.csv'))
+            .set('Origin', config.get('url'))
+            .expect('Content-Type', /json/)
+            .expect('Cache-Control', testUtils.cacheRules.private)
+            .expect(201)
+            .then((res) => {
+                should.not.exist(res.headers['x-cache-invalidate']);
+                const jsonResponse = res.body;
+
+                should.exist(jsonResponse);
+                should.exist(jsonResponse.meta);
+                should.exist(jsonResponse.meta.stats);
+
+                jsonResponse.meta.stats.imported.should.equal(1);
+                jsonResponse.meta.stats.duplicates.should.equal(0);
+                jsonResponse.meta.stats.invalid.should.equal(2);
             });
     });
 });

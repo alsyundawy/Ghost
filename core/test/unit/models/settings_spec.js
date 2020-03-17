@@ -113,7 +113,8 @@ describe('Unit: models/settings', function () {
 
             return models.Settings.populateDefaults()
                 .then(() => {
-                    eventSpy.callCount.should.equal(82);
+                    // 2 events per item - settings.added and settings.[name].added
+                    eventSpy.callCount.should.equal(92);
                     const eventsEmitted = eventSpy.args.map(args => args[0]);
                     const checkEventEmitted = event => should.ok(eventsEmitted.includes(event), `${event} event should be emitted`);
 
@@ -135,9 +136,9 @@ describe('Unit: models/settings', function () {
 
             return models.Settings.populateDefaults()
                 .then(() => {
-                    eventSpy.callCount.should.equal(80);
-
-                    eventSpy.args[13][0].should.equal('settings.logo.added');
+                    const eventsEmitted = eventSpy.args.map(args => args[0]);
+                    const checkEventNotEmitted = event => should.ok(!eventsEmitted.includes(event), `${event} event should be emitted`);
+                    checkEventNotEmitted('settings.description.added');
                 });
         });
     });

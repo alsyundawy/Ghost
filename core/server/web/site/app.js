@@ -3,6 +3,7 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const {URL} = require('url');
+const common = require('../../lib/common');
 
 // App requires
 const config = require('../../config');
@@ -18,6 +19,7 @@ const membersService = require('../../services/members');
 const membersMiddleware = membersService.middleware;
 const siteRoutes = require('./routes');
 const shared = require('../shared');
+const sentry = require('../../sentry');
 
 const STATIC_IMAGE_URL_PREFIX = `/${urlUtils.STATIC_IMAGE_URL_PREFIX}`;
 
@@ -30,26 +32,37 @@ const corsOptionsDelegate = function corsOptionsDelegate(req, callback) {
         credentials: true // required to allow admin-client to login to private sites
     };
 
-    if (origin) {
-        const originUrl = new URL(origin);
+    if (!origin) {
+        return callback(null, corsOptions);
+    }
 
-        // allow all localhost and 127.0.0.1 requests no matter the port
-        if (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') {
+    let originUrl;
+    try {
+        originUrl = new URL(origin);
+    } catch (err) {
+        return callback(new common.errors.BadRequestError({err}));
+    }
+
+    // originUrl will definitely exist here because according to WHATWG URL spec
+    // The class constructor will either throw a TypeError or return a URL object
+    // https://url.spec.whatwg.org/#url-class
+
+    // allow all localhost and 127.0.0.1 requests no matter the port
+    if (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') {
+        corsOptions.origin = true;
+    }
+
+    // allow the configured host through on any protocol
+    const siteUrl = new URL(config.get('url'));
+    if (originUrl.host === siteUrl.host) {
+        corsOptions.origin = true;
+    }
+
+    // allow the configured admin:url host through on any protocol
+    if (config.get('admin:url')) {
+        const adminUrl = new URL(config.get('admin:url'));
+        if (originUrl.host === adminUrl.host) {
             corsOptions.origin = true;
-        }
-
-        // allow the configured host through on any protocol
-        const siteUrl = new URL(config.get('url'));
-        if (originUrl.host === siteUrl.host) {
-            corsOptions.origin = true;
-        }
-
-        // allow the configured admin:url host through on any protocol
-        if (config.get('admin:url')) {
-            const adminUrl = new URL(config.get('admin:url'));
-            if (originUrl.host === adminUrl.host) {
-                corsOptions.origin = true;
-            }
         }
     }
 
@@ -64,6 +77,7 @@ module.exports = function setupSiteApp(options = {}) {
     debug('Site setup start');
 
     const siteApp = express();
+    siteApp.use(sentry.requestHandler);
 
     // Make sure 'req.secure' is valid for proxied requests
     // (X-Forwarded-Proto header will be checked, if present)
@@ -95,6 +109,8 @@ module.exports = function setupSiteApp(options = {}) {
 
     // /public/members.js
     siteApp.get('/public/members.js', membersMiddleware.public);
+    // /public/members.min.js
+    siteApp.get('/public/members.min.js', membersMiddleware.publicMinified);
 
     // Serve sitemap.xsl file
     siteApp.use(shared.middlewares.servePublicFile('sitemap.xsl', 'text/xsl', constants.ONE_DAY_S));
@@ -104,8 +120,8 @@ module.exports = function setupSiteApp(options = {}) {
     siteApp.use(shared.middlewares.servePublicFile('public/ghost.min.css', 'text/css', constants.ONE_YEAR_S));
 
     // Serve images for default templates
-    siteApp.use(shared.middlewares.servePublicFile('public/404-ghost@2x.png', 'png', constants.ONE_HOUR_S));
-    siteApp.use(shared.middlewares.servePublicFile('public/404-ghost.png', 'png', constants.ONE_HOUR_S));
+    siteApp.use(shared.middlewares.servePublicFile('public/404-ghost@2x.png', 'image/png', constants.ONE_HOUR_S));
+    siteApp.use(shared.middlewares.servePublicFile('public/404-ghost.png', 'image/png', constants.ONE_HOUR_S));
 
     // Serve blog images using the storage adapter
     siteApp.use(STATIC_IMAGE_URL_PREFIX, shared.middlewares.image.handleImageSizes, storage.getStorage().serve());
@@ -119,11 +135,11 @@ module.exports = function setupSiteApp(options = {}) {
 
     // Members middleware
     // Initializes members specific routes as well as assigns members specific data to the req/res objects
-    siteApp.get('/members/ssr', membersMiddleware.login);
-    siteApp.delete('/members/ssr', membersMiddleware.logout);
+    siteApp.get('/members/ssr', membersMiddleware.getIdentityToken);
+    siteApp.delete('/members/ssr', membersMiddleware.deleteSession);
     siteApp.post('/members/webhooks/stripe', membersMiddleware.stripeWebhooks);
 
-    siteApp.use(membersMiddleware.authentication);
+    siteApp.use(membersMiddleware.createSessionFromToken);
 
     // Theme middleware
     // This should happen AFTER any shared assets are served, as it only changes things to do with templates
@@ -181,6 +197,7 @@ module.exports = function setupSiteApp(options = {}) {
     siteApp.use(SiteRouter);
 
     // ### Error handlers
+    siteApp.use(sentry.errorHandler);
     siteApp.use(shared.middlewares.errorHandler.pageNotFound);
     siteApp.use(shared.middlewares.errorHandler.handleThemeResponse);
 

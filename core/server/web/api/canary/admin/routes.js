@@ -100,6 +100,16 @@ module.exports = function apiRoutes() {
     router.put('/members/:id', shared.middlewares.labs.members, mw.authAdminApi, http(apiCanary.members.edit));
     router.del('/members/:id', shared.middlewares.labs.members, mw.authAdminApi, http(apiCanary.members.destroy));
 
+    router.get('/members/:id/signin_urls', shared.middlewares.labs.members, mw.authAdminApi, http(apiCanary.memberSigninUrls.read));
+
+    // ## Labels
+    router.get('/labels', mw.authAdminApi, http(apiCanary.labels.browse));
+    router.get('/labels/:id', mw.authAdminApi, http(apiCanary.labels.read));
+    router.get('/labels/slug/:slug', mw.authAdminApi, http(apiCanary.labels.read));
+    router.post('/labels', mw.authAdminApi, http(apiCanary.labels.add));
+    router.put('/labels/:id', mw.authAdminApi, http(apiCanary.labels.edit));
+    router.del('/labels/:id', mw.authAdminApi, http(apiCanary.labels.destroy));
+
     // ## Roles
     router.get('/roles/', mw.authAdminApi, http(apiCanary.roles.browse));
 
@@ -167,6 +177,9 @@ module.exports = function apiRoutes() {
     );
     router.del('/session', mw.authAdminApi, http(apiCanary.session.delete));
 
+    // ## Identity
+    router.get('/identities', mw.authAdminApi, http(apiCanary.identities.read));
+
     // ## Authentication
     router.post('/authentication/passwordreset',
         shared.middlewares.brute.globalReset,
@@ -214,6 +227,14 @@ module.exports = function apiRoutes() {
 
     // ## Actions
     router.get('/actions', mw.authAdminApi, http(apiCanary.actions.browse));
+
+    // ## Email Preview
+    router.get('/email_preview/posts/:id', mw.authAdminApi, http(apiCanary.email_preview.read));
+    router.post('/email_preview/posts/:id', mw.authAdminApi, http(apiCanary.email_preview.sendTestEmail));
+
+    // ## Emails
+    router.get('/emails/:id', mw.authAdminApi, http(apiCanary.emails.read));
+    router.put('/emails/:id/retry', mw.authAdminApi, http(apiCanary.emails.retry));
 
     return router;
 };
