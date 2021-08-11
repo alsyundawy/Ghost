@@ -1,12 +1,15 @@
-const _debug = require('ghost-ignition').debug._base,
-    debug = _debug('ghost:services:url:service'),
-    _ = require('lodash'),
-    common = require('../../../server/lib/common'),
-    UrlGenerator = require('./UrlGenerator'),
-    Queue = require('./Queue'),
-    Urls = require('./Urls'),
-    Resources = require('./Resources'),
-    urlUtils = require('../../../server/lib/url-utils');
+const _debug = require('@tryghost/debug')._base;
+const debug = _debug('ghost:services:url:service');
+const _ = require('lodash');
+const errors = require('@tryghost/errors');
+const UrlGenerator = require('./UrlGenerator');
+const Queue = require('./Queue');
+const Urls = require('./Urls');
+const Resources = require('./Resources');
+const urlUtils = require('../../../shared/url-utils');
+
+// This listens to services.themes.api.changed, routing events, and it's own queue events
+const events = require('../../../server/lib/common/events');
 
 /**
  * The url service class holds all instances in a centralised place.
@@ -33,10 +36,10 @@ class UrlService {
      */
     _listeners() {
         this._onRouterAddedListener = this._onRouterAddedType.bind(this);
-        common.events.on('router.created', this._onRouterAddedListener);
+        events.on('router.created', this._onRouterAddedListener);
 
         this._onThemeChangedListener = this._onThemeChangedListener.bind(this);
-        common.events.on('services.themes.api.changed', this._onThemeChangedListener);
+        events.on('services.themes.api.changed', this._onThemeChangedListener);
 
         this._onQueueStartedListener = this._onQueueStarted.bind(this);
         this.queue.addListener('started', this._onQueueStartedListener);
@@ -131,7 +134,7 @@ class UrlService {
 
         if (!objects.length) {
             if (!this.hasFinished()) {
-                throw new common.errors.InternalServerError({
+                throw new errors.InternalServerError({
                     message: 'UrlService is processing.',
                     code: 'URLSERVICE_NOT_READY'
                 });
@@ -174,7 +177,7 @@ class UrlService {
         const object = this.urls.getByResourceId(resourceId);
 
         if (!object) {
-            throw new common.errors.NotFoundError({
+            throw new errors.NotFoundError({
                 message: 'Resource not found.',
                 code: 'URLSERVICE_RESOURCE_NOT_FOUND'
             });
@@ -304,8 +307,8 @@ class UrlService {
         if (!options.keepListeners) {
             this._onQueueStartedListener && this.queue.removeListener('started', this._onQueueStartedListener);
             this._onQueueEndedListener && this.queue.removeListener('ended', this._onQueueEndedListener);
-            this._onRouterAddedListener && common.events.removeListener('router.created', this._onRouterAddedListener);
-            this._onThemeChangedListener && common.events.removeListener('services.themes.api.changed', this._onThemeChangedListener);
+            this._onRouterAddedListener && events.removeListener('router.created', this._onRouterAddedListener);
+            this._onThemeChangedListener && events.removeListener('services.themes.api.changed', this._onThemeChangedListener);
         }
     }
 

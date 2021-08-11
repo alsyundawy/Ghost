@@ -1,8 +1,10 @@
-const debug = require('ghost-ignition').debug('services:routing:static-pages-router');
-const urlUtils = require('../../../server/lib/url-utils');
+const debug = require('@tryghost/debug')('routing:static-pages-router');
+const urlUtils = require('../../../shared/url-utils');
 const ParentRouter = require('./ParentRouter');
 const controllers = require('./controllers');
-const common = require('../../../server/lib/common');
+
+// This emits its own routing events
+const events = require('../../../server/lib/common/events');
 
 /**
  * @description Resource: pages
@@ -48,7 +50,7 @@ class StaticPagesRouter extends ParentRouter {
         // REGISTER: permalink for static pages
         this.mountRoute(this.permalinks.getValue({withUrlOptions: true}), controllers.entry);
 
-        common.events.emit('router.created', this);
+        events.emit('router.created', this);
     }
 
     /**

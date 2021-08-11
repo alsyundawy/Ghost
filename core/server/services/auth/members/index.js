@@ -1,18 +1,12 @@
 const jwt = require('express-jwt');
+const {UnauthorizedError} = require('@tryghost/errors');
 const membersService = require('../../members');
-const labs = require('../../labs');
-const config = require('../../../config');
+const config = require('../../../../shared/config');
 
 let UNO_MEMBERINO;
 
 module.exports = {
     get authenticateMembersToken() {
-        if (!labs.isSet('members')) {
-            return function (req, res, next) {
-                return next();
-            };
-        }
-
         if (!UNO_MEMBERINO) {
             const url = require('url');
             const {protocol, host} = url.parse(config.get('url'));
@@ -23,7 +17,7 @@ module.exports = {
                 requestProperty: 'member',
                 audience: siteOrigin,
                 issuer,
-                algorithm: 'RS512',
+                algorithms: ['RS512'],
                 secret(req, payload, done) {
                     membersService.api.getPublicConfig().then(({publicKey}) => {
                         done(null, publicKey);
@@ -44,8 +38,19 @@ module.exports = {
                 }
             }));
         }
-        return function (req, res, next) {
-            UNO_MEMBERINO.then(fn => fn(req, res, next)).catch(next);
+        return async function (req, res, next) {
+            try {
+                const middleware = await UNO_MEMBERINO;
+
+                middleware(req, res, function (err, ...rest) {
+                    if (err && err.name === 'UnauthorizedError') {
+                        return next(new UnauthorizedError({err}), ...rest);
+                    }
+                    return next(err, ...rest);
+                });
+            } catch (err) {
+                next(err);
+            }
         };
     }
 };

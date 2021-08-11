@@ -6,7 +6,7 @@ const gating = require('./post-gating');
 const clean = require('./clean');
 const extraAttrs = require('./extra-attrs');
 const postsMetaSchema = require('../../../../../../data/schema').tables.posts_meta;
-const config = require('../../../../../../config');
+const mega = require('../../../../../../services/mega');
 
 const mapUser = (model, frame) => {
     const jsonModel = model.toJSON ? model.toJSON(frame.options) : model;
@@ -47,6 +47,19 @@ const mapPost = (model, frame) => {
         gating.forPost(jsonModel, frame);
     }
 
+    // Transforms post/page metadata to flat structure
+    let metaAttrs = _.keys(_.omit(postsMetaSchema, ['id', 'post_id']));
+    _(metaAttrs).filter((k) => {
+        return (!frame.options.columns || (frame.options.columns && frame.options.columns.includes(k)));
+    }).each((attr) => {
+        // NOTE: the default of `email_only` is `false` which is why we default to `false` instead of `null`
+        //       The undefined value is possible because `posts_meta` table is lazily created only one of the
+        //       values is assigned.
+        const defaultValue = (attr === 'email_only') ? false : null;
+        jsonModel[attr] = _.get(jsonModel.posts_meta, attr) || defaultValue;
+    });
+    delete jsonModel.posts_meta;
+
     clean.post(jsonModel, frame);
 
     if (frame.options && frame.options.withRelated) {
@@ -62,20 +75,15 @@ const mapPost = (model, frame) => {
                 jsonModel.authors = jsonModel.authors.map(author => mapUser(author, frame));
             }
 
+            if (relation === 'email' && jsonModel.email) {
+                jsonModel.email = mapEmail(jsonModel.email, frame);
+            }
+
             if (relation === 'email' && _.isEmpty(jsonModel.email)) {
                 jsonModel.email = null;
             }
         });
     }
-
-    // Transforms post/page metadata to flat structure
-    let metaAttrs = _.keys(_.omit(postsMetaSchema, ['id', 'post_id']));
-    _(metaAttrs).filter((k) => {
-        return (!frame.options.columns || (frame.options.columns && frame.options.columns.includes(k)));
-    }).each((attr) => {
-        jsonModel[attr] = _.get(jsonModel.posts_meta, attr) || null;
-    });
-    delete jsonModel.posts_meta;
 
     return jsonModel;
 };
@@ -84,7 +92,8 @@ const mapPage = (model, frame) => {
     const jsonModel = mapPost(model, frame);
 
     delete jsonModel.email_subject;
-    delete jsonModel.send_email_when_published;
+    delete jsonModel.email_recipient_filter;
+    delete jsonModel.email_only;
 
     return jsonModel;
 };
@@ -92,25 +101,31 @@ const mapPage = (model, frame) => {
 const mapSettings = (attrs, frame) => {
     url.forSettings(attrs);
     extraAttrs.forSettings(attrs, frame);
-    clean.settings(attrs, frame);
 
     // NOTE: The cleanup of deprecated ghost_head/ghost_foot has to happen here
     //       because codeinjection_head/codeinjection_foot are assigned on a previous
     //      `forSettings` step. This logic can be rewritten once we get rid of deprecated
     //      fields completely.
     if (_.isArray(attrs)) {
-        attrs = _.filter(attrs, (o) => {
-            if (o.key === 'brand' && !config.get('enableDeveloperExperiments')) {
-                return false;
+        const keysToFilter = ['ghost_head', 'ghost_foot'];
+
+        // NOTE: to support edits of deprecated 'slack' setting artificial 'slack_url' and 'slack_username'
+        //       were added to the request body in the input serializer. These should not be returned in response
+        //       body unless directly requested
+        if (frame.original.body && frame.original.body.settings) {
+            const requestedEditSlackUrl = frame.original.body.settings.find(s => s.key === 'slack_url');
+            const requestedEditSlackUsername = frame.original.body.settings.find(s => s.key === 'slack_username');
+
+            if (!requestedEditSlackUrl) {
+                keysToFilter.push('slack_url');
             }
-            return o.key !== 'ghost_head' && o.key !== 'ghost_foot';
-        });
-    } else {
-        delete attrs.ghost_head;
-        delete attrs.ghost_foot;
-        if (!config.get('enableDeveloperExperiments')) {
-            delete attrs.brand;
+
+            if (!requestedEditSlackUsername) {
+                keysToFilter.push('slack_username');
+            }
         }
+
+        attrs = _.filter(attrs, attr => !(keysToFilter.includes(attr.key)));
     }
 
     return attrs;
@@ -140,25 +155,24 @@ const mapAction = (model, frame) => {
     return attrs;
 };
 
-const mapMember = (model, frame) => {
+const mapLabel = (model, frame) => {
     const jsonModel = model.toJSON ? model.toJSON(frame.options) : model;
-
-    if (_.get(jsonModel, 'stripe.subscriptions')) {
-        let compedSubscriptions = _.get(jsonModel, 'stripe.subscriptions').filter(sub => (sub.plan.nickname === 'Complimentary'));
-        const hasCompedSubscription = !!(compedSubscriptions.length);
-
-        // NOTE: `frame.options.fields` has to be taken into account in the same way as for `stripe.subscriptions`
-        //       at the moment of implementation fields were not fully supported by members endpoints
-        Object.assign(jsonModel, {
-            comped: hasCompedSubscription
-        });
-    }
-
     return jsonModel;
 };
 
-const mapLabel = (model, frame) => {
+const mapEmail = (model, frame) => {
     const jsonModel = model.toJSON ? model.toJSON(frame.options) : model;
+
+    // Ensure we're not outputting unwanted replacement strings when viewing email contents
+    // TODO: extract this to a utility, it's duplicated in the email-preview API controller
+    const replacements = mega.postEmailSerializer.parseReplacements(jsonModel);
+    replacements.forEach((replacement) => {
+        jsonModel[replacement.format] = jsonModel[replacement.format].replace(
+            replacement.match,
+            replacement.fallback || ''
+        );
+    });
+
     return jsonModel;
 };
 
@@ -171,4 +185,4 @@ module.exports.mapIntegration = mapIntegration;
 module.exports.mapSettings = mapSettings;
 module.exports.mapImage = mapImage;
 module.exports.mapAction = mapAction;
-module.exports.mapMember = mapMember;
+module.exports.mapEmail = mapEmail;

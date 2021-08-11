@@ -1,4 +1,5 @@
-const debug = require('ghost-ignition').debug('api:canary:utils:serializers:output:roles');
+const Promise = require('bluebird');
+const debug = require('@tryghost/debug')('api:canary:utils:serializers:output:roles');
 const canThis = require('../../../../../services/permissions').canThis;
 
 module.exports = {
@@ -18,9 +19,9 @@ module.exports = {
                     .catch(() => {});
             }), (value) => {
                 return value && (value.name !== 'Owner');
-            }).then((roles) => {
+            }).then((filteredRoles) => {
                 return frame.response = {
-                    roles: roles
+                    roles: filteredRoles
                 };
             });
         }

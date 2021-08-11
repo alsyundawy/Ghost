@@ -1,5 +1,5 @@
-const debug = require('ghost-ignition').debug('api:v2:utils:serializers:output:users');
-const common = require('../../../../../lib/common');
+const debug = require('@tryghost/debug')('api:v2:utils:serializers:output:users');
+const i18n = require('../../../../../../shared/i18n');
 const mapper = require('./utils/mapper');
 
 module.exports = {
@@ -29,7 +29,7 @@ module.exports = {
         debug('changePassword');
 
         frame.response = {
-            password: [{message: common.i18n.t('notices.api.users.pwdChangedSuccessfully')}]
+            password: [{message: i18n.t('notices.api.users.pwdChangedSuccessfully')}]
         };
     },
 

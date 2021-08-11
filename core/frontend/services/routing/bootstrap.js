@@ -1,7 +1,5 @@
-const debug = require('ghost-ignition').debug('services:routing:bootstrap');
+const debug = require('@tryghost/debug')('routing');
 const _ = require('lodash');
-const common = require('../../../server/lib/common');
-const settingsService = require('../settings');
 const StaticRoutesRouter = require('./StaticRoutesRouter');
 const StaticPagesRouter = require('./StaticPagesRouter');
 const CollectionRouter = require('./CollectionRouter');
@@ -10,7 +8,10 @@ const PreviewRouter = require('./PreviewRouter');
 const ParentRouter = require('./ParentRouter');
 const UnsubscribeRouter = require('./UnsubscribeRouter');
 
-const defaultApiVersion = 'v3';
+// This emits its own routing events
+const events = require('../../../server/lib/common/events');
+
+const defaultApiVersion = 'v4';
 
 const registry = require('./registry');
 let siteRouter;
@@ -22,33 +23,32 @@ let siteRouter;
  * CASES:
  *   - if Ghost starts, it will first init the site app with the wrapper router and then call `start`
  *     separately, because it could be that your blog goes into maintenance mode
- *   - if you upload your routes.yaml in the admin client, we will re-initialise routing
- *   -
+ *   - if you change your route settings, we will re-initialise routing
  *
  * @param {Object} options
  * @returns {ExpressRouter}
  */
-module.exports.init = (options = {start: false}) => {
-    debug('bootstrap');
+module.exports.init = ({start = false, routerSettings, apiVersion}) => {
+    debug('bootstrap init', start, apiVersion, routerSettings);
 
     registry.resetAllRouters();
     registry.resetAllRoutes();
 
-    common.events.emit('routers.reset');
+    events.emit('routers.reset');
 
     siteRouter = new ParentRouter('SiteRouter');
     registry.setRouter('siteRouter', siteRouter);
 
-    if (options.start) {
-        let apiVersion = _.isBoolean(options.start) ? defaultApiVersion : options.start;
-        this.start(apiVersion);
+    if (start) {
+        apiVersion = apiVersion || defaultApiVersion;
+        this.start(apiVersion, routerSettings);
     }
 
     return siteRouter.router();
 };
 
 /**
- * @description This function will create the routers based on the routes.yaml config.
+ * @description This function will create the routers based on the route settings
  *
  * The routers are created in a specific order. This order defines who can get a resource first or
  * who can dominant other routers.
@@ -58,9 +58,13 @@ module.exports.init = (options = {start: false}) => {
  * 3. Taxonomies: Stronger than collections, because it's an inbuilt feature.
  * 4. Collections
  * 5. Static Pages: Weaker than collections, because we first try to find a post slug and fallback to lookup a static page.
- * 6. Apps: Weakest
+ * 6. Internal Apps: Weakest
+ *
+ * @param {string} apiVersion
+ * @param {object} routerSettings
  */
-module.exports.start = (apiVersion) => {
+module.exports.start = (apiVersion, routerSettings) => {
+    debug('bootstrap start', apiVersion, routerSettings);
     const RESOURCE_CONFIG = require(`./config/${apiVersion}`);
 
     const unsubscribeRouter = new UnsubscribeRouter();
@@ -71,24 +75,14 @@ module.exports.start = (apiVersion) => {
     siteRouter.mountRouter(previewRouter.router());
     registry.setRouter('previewRouter', previewRouter);
 
-    // NOTE: Get the routes.yaml config
-    const dynamicRoutes = settingsService.get('routes');
-
-    _.each(dynamicRoutes.routes, (value, key) => {
-        const staticRoutesRouter = new StaticRoutesRouter(key, value, RESOURCE_CONFIG);
+    _.each(routerSettings.routes, (value, key) => {
+        const staticRoutesRouter = new StaticRoutesRouter(key, value);
         siteRouter.mountRouter(staticRoutesRouter.router());
 
         registry.setRouter(staticRoutesRouter.identifier, staticRoutesRouter);
     });
 
-    _.each(dynamicRoutes.taxonomies, (value, key) => {
-        const taxonomyRouter = new TaxonomyRouter(key, value, RESOURCE_CONFIG);
-        siteRouter.mountRouter(taxonomyRouter.router());
-
-        registry.setRouter(taxonomyRouter.identifier, taxonomyRouter);
-    });
-
-    _.each(dynamicRoutes.collections, (value, key) => {
+    _.each(routerSettings.collections, (value, key) => {
         const collectionRouter = new CollectionRouter(key, value, RESOURCE_CONFIG);
         siteRouter.mountRouter(collectionRouter.router());
         registry.setRouter(collectionRouter.identifier, collectionRouter);
@@ -98,6 +92,13 @@ module.exports.start = (apiVersion) => {
     siteRouter.mountRouter(staticPagesRouter.router());
 
     registry.setRouter('staticPagesRouter', staticPagesRouter);
+
+    _.each(routerSettings.taxonomies, (value, key) => {
+        const taxonomyRouter = new TaxonomyRouter(key, value, RESOURCE_CONFIG);
+        siteRouter.mountRouter(taxonomyRouter.router());
+
+        registry.setRouter(taxonomyRouter.identifier, taxonomyRouter);
+    });
 
     const appRouter = new ParentRouter('AppsRouter');
     siteRouter.mountRouter(appRouter.router());

@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const debug = require('ghost-ignition').debug('api:canary:utils:serializers:input:members');
+const debug = require('@tryghost/debug')('api:canary:utils:serializers:input:members');
 
 function defaultRelations(frame) {
     if (frame.options.withRelated) {
@@ -42,5 +42,21 @@ module.exports = {
     edit(apiConfig, frame) {
         debug('edit');
         this.add(apiConfig, frame);
+    },
+
+    async importCSV(apiConfig, frame) {
+        debug('importCSV');
+        if (!frame.data.labels) {
+            frame.data.labels = [];
+            return;
+        }
+        if (typeof frame.data.labels === 'string') {
+            frame.data.labels = [{name: frame.data.labels}];
+            return;
+        }
+        if (Array.isArray(frame.data.labels)) {
+            frame.data.labels = frame.data.labels.map(name => ({name}));
+            return;
+        }
     }
 };

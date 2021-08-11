@@ -1,10 +1,13 @@
-const debug = require('ghost-ignition').debug('services:routing:static-routes-router');
-const common = require('../../../server/lib/common');
-const urlUtils = require('../../../server/lib/url-utils');
+const debug = require('@tryghost/debug')('routing:static-routes-router');
+const errors = require('@tryghost/errors');
+const urlUtils = require('../../../shared/url-utils');
 const RSSRouter = require('./RSSRouter');
 const controllers = require('./controllers');
 const middlewares = require('./middlewares');
 const ParentRouter = require('./ParentRouter');
+
+// This emits its own routing events
+const events = require('../../../server/lib/common/events');
 
 /**
  * @description Template routes allow you to map individual URLs to specific template files within a Ghost theme
@@ -61,7 +64,7 @@ class StaticRoutesRouter extends ParentRouter {
         this.router().param('page', middlewares.pageParam);
         this.mountRoute(urlUtils.urlJoin(this.route.value, 'page', ':page(\\d+)'), controllers[this.controller]);
 
-        common.events.emit('router.created', this);
+        events.emit('router.created', this);
     }
 
     /**
@@ -97,7 +100,7 @@ class StaticRoutesRouter extends ParentRouter {
         // REGISTER: static route
         this.mountRoute(this.route.value, controllers.static);
 
-        common.events.emit('router.created', this);
+        events.emit('router.created', this);
     }
 
     /**
@@ -112,7 +115,7 @@ class StaticRoutesRouter extends ParentRouter {
             type: 'custom',
             templates: this.templates,
             defaultTemplate: () => {
-                throw new common.errors.IncorrectUsageError({
+                throw new errors.IncorrectUsageError({
                     message: `Missing template ${res.routerOptions.templates.map(x => `${x}.hbs`).join(', ')} for route "${req.originalUrl}".`
                 });
             },

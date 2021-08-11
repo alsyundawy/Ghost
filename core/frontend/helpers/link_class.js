@@ -1,7 +1,7 @@
 // # link_class helper
 const _ = require('lodash');
-const {config, SafeString, errors, i18n} = require('./proxy');
-const {buildLinkClasses} = require('./utils');
+const {config, SafeString, errors, i18n, localUtils} = require('../services/proxy');
+const {buildLinkClasses} = localUtils;
 
 module.exports = function link_class(options) { // eslint-disable-line camelcase
     options = options || {};
@@ -18,7 +18,7 @@ module.exports = function link_class(options) { // eslint-disable-line camelcase
     // If the for attribute is present but empty, this is probably a dynamic data problem, hard for theme devs to track down
     // E.g. {{link_class for=slug}} in a context where slug returns an empty string
     // Error's here aren't useful (same as with empty get helper filters) so we fallback gracefully
-    if (!options.hash.for) {
+    if (!options.hash.for || options.hash.for.string === '') {
         options.hash.for = '';
     }
 

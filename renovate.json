@@ -1,28 +1,21 @@
 {
   "extends": [
-    "@tryghost:base",
+    "@tryghost:quietJS",
+    "@tryghost:disableTryGhostAutomerge",
     "@tryghost:groupTestLint",
     "@tryghost:groupCSS",
-    "@tryghost:groupBuildTools",
-    "@tryghost:automergeSilentTestLintNonMajor"
+    "@tryghost:groupBuildTools"
   ],
-  "travis": { "enabled": true },
-  "node": {
-    "supportPolicy": ["lts"]
-   },
-  "separateMinorPatch": true,
-  "patch": {
-    "automerge": true
-  },
   "ignoreDeps": [
       "got",
+      "ghost-storage-base",
       "intl-messageformat",
+      "moment",
       "moment-timezone",
       "nodemailer",
-      "validator",
       "simple-dom"
     ],
-  "ignorePaths": ["core/test"],
+  "ignorePaths": ["test"],
   "packageRules": [
     {
       "packagePatterns": [ "metascraper" ],

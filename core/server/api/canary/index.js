@@ -71,8 +71,16 @@ module.exports = {
         return shared.pipeline(require('./settings'), localUtils);
     },
 
+    get membersStripeConnect() {
+        return shared.pipeline(require('./membersStripeConnect'), localUtils);
+    },
+
     get members() {
         return shared.pipeline(require('./members'), localUtils);
+    },
+
+    get products() {
+        return shared.pipeline(require('./products'), localUtils);
     },
 
     get memberSigninUrls() {
@@ -131,6 +139,10 @@ module.exports = {
         return shared.pipeline(require('./site'), localUtils);
     },
 
+    get snippets() {
+        return shared.pipeline(require('./snippets'), localUtils);
+    },
+
     get serializers() {
         return require('./utils/serializers');
     },
@@ -161,5 +173,9 @@ module.exports = {
 
     get authorsPublic() {
         return shared.pipeline(require('./authors-public'), localUtils, 'content');
+    },
+
+    get productsPublic() {
+        return shared.pipeline(require('./products-public'), localUtils, 'content');
     }
 };

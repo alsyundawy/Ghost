@@ -1,10 +1,12 @@
 const _ = require('lodash');
 const Promise = require('bluebird');
-const debug = require('ghost-ignition').debug('services:url:resources');
+const debug = require('@tryghost/debug')('services:url:resources');
 const Resource = require('./Resource');
-const config = require('../../../server/config');
+const config = require('../../../shared/config');
 const models = require('../../../server/models');
-const common = require('../../../server/lib/common');
+
+// This listens to all manner of model events to find new content that needs a URL...
+const events = require('../../../server/lib/common/events');
 
 /**
  * @description At the moment the resources class is directly responsible for data population
@@ -21,7 +23,6 @@ class Resources {
         this.data = {};
 
         this.listeners = [];
-        this._listeners();
     }
 
     /**
@@ -38,17 +39,7 @@ class Resources {
             listener: listener
         });
 
-        common.events.on(eventName, listener);
-    }
-
-    /**
-     * @description Little helper which get's called on class instantiation. It will subscribe to the
-     *              database ready event to start fetching the data as early as possible.
-     *
-     * @private
-     */
-    _listeners() {
-        this._listenOn('db.ready', this.fetchResources.bind(this));
+        events.on(eventName, listener);
     }
 
     /**
@@ -60,10 +51,11 @@ class Resources {
      */
     _initResourceConfig() {
         if (!_.isEmpty(this.resourcesConfig)) {
-            return this.resourceConfig;
+            return;
         }
 
-        this.resourcesAPIVersion = require('../themes').getApiVersion();
+        const bridge = require('../../../bridge');
+        this.resourcesAPIVersion = bridge.getFrontendApiVersion();
         this.resourcesConfig = require(`./configs/${this.resourcesAPIVersion}`);
     }
 
@@ -346,7 +338,7 @@ class Resources {
                     return this._fetchSingle(resourceConfig, model.id);
                 })
                 .then(([dbResource]) => {
-                    const resource = this.data[type].find(resource => (resource.data.id === model.id));
+                    const resource = this.data[type].find(r => (r.data.id === model.id));
 
                     // CASE: cached resource exists, API conditions matched with the data in the db
                     if (resource && dbResource) {
@@ -441,13 +433,9 @@ class Resources {
      *
      * @param {Object} options
      */
-    reset(options = {ignoreDBReady: false}) {
+    reset() {
         _.each(this.listeners, (obj) => {
-            if (obj.eventName === 'db.ready' && options.ignoreDBReady) {
-                return;
-            }
-
-            common.events.removeListener(obj.eventName, obj.listener);
+            events.removeListener(obj.eventName, obj.listener);
         });
 
         this.listeners = [];

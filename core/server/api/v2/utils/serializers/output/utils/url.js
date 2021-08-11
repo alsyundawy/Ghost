@@ -1,6 +1,5 @@
-const _ = require('lodash');
 const urlService = require('../../../../../../../frontend/services/url');
-const urlUtils = require('../../../../../../lib/url-utils');
+const urlUtils = require('../../../../../../../shared/url-utils');
 const localUtils = require('../../../index');
 
 const forPost = (id, attrs, frame) => {
@@ -30,38 +29,6 @@ const forPost = (id, attrs, frame) => {
         }
     }
 
-    const urlOptions = {};
-
-    // v2 only transforms asset URLS, v3 will transform all urls so that
-    // input/output transformations are balanced and all URLs are absolute
-    if (!frame.options.absolute_urls) {
-        urlOptions.assetsOnly = true;
-    }
-
-    if (attrs.mobiledoc) {
-        attrs.mobiledoc = urlUtils.mobiledocRelativeToAbsolute(
-            attrs.mobiledoc,
-            attrs.url,
-            urlOptions
-        );
-    }
-
-    ['html', 'codeinjection_head', 'codeinjection_foot'].forEach((attr) => {
-        if (attrs[attr]) {
-            attrs[attr] = urlUtils.htmlRelativeToAbsolute(
-                attrs[attr],
-                attrs.url,
-                urlOptions
-            );
-        }
-    });
-
-    ['feature_image', 'og_image', 'twitter_image', 'canonical_url'].forEach((attr) => {
-        if (attrs[attr]) {
-            attrs[attr] = urlUtils.relativeToAbsolute(attrs[attr], attrs.url, urlOptions);
-        }
-    });
-
     if (frame.options.columns && !frame.options.columns.includes('url')) {
         delete attrs.url;
     }
@@ -74,14 +41,6 @@ const forUser = (id, attrs, options) => {
         attrs.url = urlService.getUrlByResourceId(id, {absolute: true});
     }
 
-    if (attrs.profile_image) {
-        attrs.profile_image = urlUtils.urlFor('image', {image: attrs.profile_image}, true);
-    }
-
-    if (attrs.cover_image) {
-        attrs.cover_image = urlUtils.urlFor('image', {image: attrs.cover_image}, true);
-    }
-
     return attrs;
 };
 
@@ -90,36 +49,10 @@ const forTag = (id, attrs, options) => {
         attrs.url = urlService.getUrlByResourceId(id, {absolute: true});
     }
 
-    if (attrs.feature_image) {
-        attrs.feature_image = urlUtils.urlFor('image', {image: attrs.feature_image}, true);
-    }
-
     return attrs;
 };
 
 const forSettings = (attrs) => {
-    // @TODO: https://github.com/TryGhost/Ghost/issues/10106
-    // @NOTE: Admin & Content API return a different format, need to mappers
-    if (_.isArray(attrs)) {
-        attrs.forEach((obj) => {
-            if (['cover_image', 'logo', 'icon'].includes(obj.key) && obj.value) {
-                obj.value = urlUtils.urlFor('image', {image: obj.value}, true);
-            }
-        });
-    } else {
-        if (attrs.cover_image) {
-            attrs.cover_image = urlUtils.urlFor('image', {image: attrs.cover_image}, true);
-        }
-
-        if (attrs.logo) {
-            attrs.logo = urlUtils.urlFor('image', {image: attrs.logo}, true);
-        }
-
-        if (attrs.icon) {
-            attrs.icon = urlUtils.urlFor('image', {image: attrs.icon}, true);
-        }
-    }
-
     return attrs;
 };
 

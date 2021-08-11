@@ -1,11 +1,13 @@
-const debug = require('ghost-ignition').debug('services:routing:collection-router');
-const common = require('../../../server/lib/common');
-const urlUtils = require('../../../server/lib/url-utils');
+const debug = require('@tryghost/debug')('routing:collection-router');
+const urlUtils = require('../../../shared/url-utils');
 const ParentRouter = require('./ParentRouter');
 
 const controllers = require('./controllers');
 const middlewares = require('./middlewares');
 const RSSRouter = require('./RSSRouter');
+
+// This emits its own routing events AND listens to settings.timezone.edited :(
+const events = require('../../../server/lib/common/events');
 
 /**
  * @description Collection Router for post resource.
@@ -90,7 +92,7 @@ class CollectionRouter extends ParentRouter {
         // REGISTER: permalinks e.g. /:slug/, /podcast/:slug
         this.mountRoute(this.permalinks.getValue({withUrlOptions: true}), controllers.entry);
 
-        common.events.emit('router.created', this);
+        events.emit('router.created', this);
     }
 
     /**
@@ -138,7 +140,7 @@ class CollectionRouter extends ParentRouter {
          * e.g. /:year/:month/:day/:slug/ or /:day/:slug/
          */
         this._onTimezoneEditedListener = this._onTimezoneEdited.bind(this);
-        common.events.on('settings.active_timezone.edited', this._onTimezoneEditedListener);
+        events.on('settings.timezone.edited', this._onTimezoneEditedListener);
     }
 
     /**
@@ -147,8 +149,8 @@ class CollectionRouter extends ParentRouter {
      * @private
      */
     _onTimezoneEdited(settingModel) {
-        const newTimezone = settingModel.attributes.value,
-            previousTimezone = settingModel._previousAttributes.value;
+        const newTimezone = settingModel.attributes.value;
+        const previousTimezone = settingModel._previousAttributes.value;
 
         if (newTimezone === previousTimezone) {
             return;
@@ -197,7 +199,7 @@ class CollectionRouter extends ParentRouter {
 
     reset() {
         if (this._onTimezoneEditedListener) {
-            common.events.removeListener('settings.active_timezone.edited', this._onTimezoneEditedListener);
+            events.removeListener('settings.timezone.edited', this._onTimezoneEditedListener);
         }
     }
 }

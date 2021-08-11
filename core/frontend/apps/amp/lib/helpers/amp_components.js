@@ -8,12 +8,11 @@
 // By default supported AMP HTML tags (no additional script tag necessary):
 // amp-img, amp-ad, amp-embed, amp-video and amp-pixel.
 // (less) dirty requires
-const proxy = require('../../../../helpers/proxy'),
-    SafeString = proxy.SafeString;
+const {SafeString, settingsCache} = require('../../../../services/proxy');
 
 function ampComponents() {
-    let components = [],
-        html = this.post && this.post.html || this.html;
+    let components = [];
+    let html = this.post && this.post.html || this.html;
 
     if (!html) {
         return;
@@ -23,8 +22,8 @@ function ampComponents() {
         components.push('<script async custom-element="amp-anim" src="https://cdn.ampproject.org/v0/amp-anim-0.1.js"></script>');
     }
 
-    let iframeCount = (html.match(/(<iframe)(.*?)(<\/iframe>)/gi) || []).length,
-        youtubeCount = (html.match(/(<iframe)(.*?)(youtu.be\/|youtube(-nocookie)?.com\/(v\/|.*u\/\w\/|embed\/|.*v=))(.*?)(<\/iframe>)/gi) || []).length;
+    let iframeCount = (html.match(/(<iframe)(.*?\s*?)(<\/iframe>)/gi) || []).length;
+    let youtubeCount = (html.match(/(<iframe)(.*?\s*?)(youtu.be\/|youtube(-nocookie)?.com\/(v\/|.*u\/\w\/|embed\/|.*v=))(.*?\s*?)(<\/iframe>)/gi) || []).length;
 
     if (youtubeCount) {
         components.push('<script async custom-element="amp-youtube" src="https://cdn.ampproject.org/v0/amp-youtube-0.1.js"></script>');
@@ -36,6 +35,10 @@ function ampComponents() {
 
     if (html.indexOf('<audio') !== -1) {
         components.push('<script async custom-element="amp-audio" src="https://cdn.ampproject.org/v0/amp-audio-0.1.js"></script>');
+    }
+
+    if (settingsCache.get('amp_gtag_id')) {
+        components.push('<script async custom-element="amp-analytics" src="https://cdn.ampproject.org/v0/amp-analytics-0.1.js"></script>');
     }
 
     return new SafeString(components.join('\n'));

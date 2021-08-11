@@ -1,8 +1,11 @@
 const models = require('../../models');
-const common = require('../../lib/common');
-const urlUtils = require('../../lib/url-utils');
+const i18n = require('../../../shared/i18n');
+const errors = require('@tryghost/errors');
+const getPostServiceInstance = require('../../services/posts/posts-service');
 const allowedIncludes = ['tags', 'authors', 'authors.roles'];
 const unsafeAttrs = ['status', 'authors', 'visibility'];
+
+const postsService = getPostServiceInstance('v2');
 
 module.exports = {
     docName: 'posts',
@@ -69,8 +72,8 @@ module.exports = {
             return models.Post.findOne(frame.data, frame.options)
                 .then((model) => {
                     if (!model) {
-                        throw new common.errors.NotFoundError({
-                            message: common.i18n.t('errors.api.posts.postNotFound')
+                        throw new errors.NotFoundError({
+                            message: i18n.t('errors.api.posts.postNotFound')
                         });
                     }
 
@@ -139,29 +142,12 @@ module.exports = {
         permissions: {
             unsafeAttrs: unsafeAttrs
         },
-        query(frame) {
-            return models.Post.edit(frame.data.posts[0], frame.options)
-                .then((model) => {
-                    if (
-                        model.get('status') === 'published' && model.wasChanged() ||
-                        model.get('status') === 'draft' && model.previous('status') === 'published'
-                    ) {
-                        this.headers.cacheInvalidate = true;
-                    } else if (
-                        model.get('status') === 'draft' && model.previous('status') !== 'published' ||
-                        model.get('status') === 'scheduled' && model.wasChanged()
-                    ) {
-                        this.headers.cacheInvalidate = {
-                            value: urlUtils.urlFor({
-                                relativeUrl: urlUtils.urlJoin('/p', model.get('uuid'), '/')
-                            })
-                        };
-                    } else {
-                        this.headers.cacheInvalidate = false;
-                    }
+        async query(frame) {
+            const model = await models.Post.edit(frame.data.posts[0], frame.options);
 
-                    return model;
-                });
+            this.headers.cacheInvalidate = postsService.handleCacheInvalidation(model);
+
+            return model;
         }
     },
 
@@ -191,11 +177,11 @@ module.exports = {
             frame.options.require = true;
 
             return models.Post.destroy(frame.options)
-                .return(null)
+                .then(() => null)
                 .catch(models.Post.NotFoundError, () => {
-                    throw new common.errors.NotFoundError({
-                        message: common.i18n.t('errors.api.posts.postNotFound')
-                    });
+                    return Promise.reject(new errors.NotFoundError({
+                        message: i18n.t('errors.api.posts.postNotFound')
+                    }));
                 });
         }
     }

@@ -1,7 +1,8 @@
-const debug = require('ghost-ignition').debug('importer:users'),
-    _ = require('lodash'),
-    BaseImporter = require('./base'),
-    models = require('../../../../models');
+const debug = require('@tryghost/debug')('importer:users');
+const _ = require('lodash');
+const BaseImporter = require('./base');
+const models = require('../../../../models');
+const limitService = require('../../../../services/limits');
 
 class UsersImporter extends BaseImporter {
     constructor(allDataFromFile) {
@@ -30,7 +31,8 @@ class UsersImporter extends BaseImporter {
     beforeImport() {
         debug('beforeImport');
 
-        let role, lookup = {};
+        let role;
+        let lookup = {};
 
         // NOTE: sort out duplicated roles based on incremental id
         _.each(this.requiredFromFile.roles_users, (attachedRole) => {
@@ -46,15 +48,23 @@ class UsersImporter extends BaseImporter {
         this.requiredFromFile.roles_users = _.toArray(lookup);
 
         _.each(this.requiredFromFile.roles_users, (attachedRole) => {
-            role = _.find(this.requiredFromFile.roles, (role) => {
-                if (attachedRole.role_id === role.id) {
-                    return role;
+            role = _.find(this.requiredFromFile.roles, (requiredRole) => {
+                if (attachedRole.role_id === requiredRole.id) {
+                    return requiredRole;
                 }
             });
 
             // CASE: default fallback role
             if (!role) {
                 role = {name: 'Author'};
+            }
+
+            // If this site has any sort of staff limit, set all imported users to contributors
+            // Any other sort of logic for counting staff users would be too complex in this scenario
+            // So we essentially don't allow importing staff users
+            // The roles can be changed afterwards if the limit permits
+            if (limitService.isLimited('staff')) {
+                role = {name: 'Contributor'};
             }
 
             _.each(this.dataToImport, (obj) => {

@@ -3,25 +3,47 @@ const localUtils = require('../../../index');
 
 const tag = (attrs, frame) => {
     if (localUtils.isContentAPI(frame)) {
-        delete attrs.created_at;
-        delete attrs.updated_at;
+        const contentAttrs = _.pick(attrs, [
+            'description',
+            'feature_image',
+            'id',
+            'meta_description',
+            'meta_title',
+            'name',
+            'slug',
+            'url',
+            'visibility',
+            'count'
+        ]);
 
         // We are standardising on returning null from the Content API for any empty values
-        if (attrs.meta_title === '') {
-            attrs.meta_title = null;
+        if (contentAttrs.meta_title === '') {
+            contentAttrs.meta_title = null;
         }
-        if (attrs.meta_description === '') {
-            attrs.meta_description = null;
+        if (contentAttrs.meta_description === '') {
+            contentAttrs.meta_description = null;
         }
-        if (attrs.description === '') {
-            attrs.description = null;
+        if (contentAttrs.description === '') {
+            contentAttrs.description = null;
         }
+
+        return contentAttrs;
     }
 
-    delete attrs.parent_id;
-    delete attrs.parent;
-
-    return attrs;
+    return _.pick(attrs, [
+        'created_at',
+        'description',
+        'feature_image',
+        'id',
+        'meta_description',
+        'meta_title',
+        'name',
+        'slug',
+        'updated_at',
+        'url',
+        'visibility',
+        'count'
+    ]);
 };
 
 const author = (attrs, frame) => {
@@ -74,6 +96,7 @@ const post = (attrs, frame) => {
         // @TODO: https://github.com/TryGhost/Ghost/issues/10335
         // delete attrs.page;
         delete attrs.status;
+        delete attrs.email_only;
 
         // We are standardising on returning null from the Content API for any empty values
         if (attrs.twitter_title === '') {
@@ -111,6 +134,11 @@ const post = (attrs, frame) => {
     delete attrs.locale;
     delete attrs.author;
     delete attrs.type;
+    delete attrs.send_email_when_published;
+    delete attrs.email_recipient_filter;
+    delete attrs.email_subject;
+    delete attrs.feature_image_alt;
+    delete attrs.feature_image_caption;
 
     return attrs;
 };

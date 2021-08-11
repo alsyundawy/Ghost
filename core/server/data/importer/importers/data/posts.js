@@ -1,9 +1,9 @@
-const debug = require('ghost-ignition').debug('importer:posts');
+const debug = require('@tryghost/debug')('importer:posts');
 const _ = require('lodash');
 const uuid = require('uuid');
 const BaseImporter = require('./base');
-const converters = require('../../../../lib/mobiledoc/converters');
-const validation = require('../../../validation');
+const mobiledocLib = require('../../../../lib/mobiledoc');
+const validator = require('@tryghost/validator');
 const postsMetaSchema = require('../../../schema').tables.posts_meta;
 const metaAttrs = _.keys(_.omit(postsMetaSchema, ['id']));
 
@@ -20,7 +20,7 @@ class PostsImporter extends BaseImporter {
 
     sanitizeAttributes() {
         _.each(this.dataToImport, (obj) => {
-            if (!validation.validator.isUUID(obj.uuid || '')) {
+            if (!validator.isUUID(obj.uuid || '')) {
                 obj.uuid = uuid.v4();
             }
 
@@ -32,6 +32,15 @@ class PostsImporter extends BaseImporter {
                     obj.type = obj.page ? 'page' : 'post';
                 }
                 delete obj.page;
+            }
+
+            if (_.has(obj, 'send_email_when_published')) {
+                if (obj.send_email_when_published) {
+                    obj.email_recipient_filter = obj.visibility === 'paid' ? 'paid' : 'all';
+                } else {
+                    obj.email_recipient_filter = 'none';
+                }
+                delete obj.send_email_when_published;
             }
         });
     }
@@ -193,21 +202,32 @@ class PostsImporter extends BaseImporter {
             // CASE 1: you are importing old editor posts
             // CASE 2: you are importing Koenig Beta posts
             // CASE 3: you are importing Koenig 2.0 posts
-            if (model.mobiledoc || (model.mobiledoc && model.html && model.html.match(/^<div class="kg-card-markdown">/))) {
+            if (model.mobiledoc) {
                 let mobiledoc;
 
                 try {
                     mobiledoc = JSON.parse(model.mobiledoc);
 
                     if (!mobiledoc.cards || !_.isArray(mobiledoc.cards)) {
-                        model.mobiledoc = converters.mobiledocConverter.blankStructure();
+                        model.mobiledoc = mobiledocLib.blankDocument;
                         mobiledoc = model.mobiledoc;
                     }
                 } catch (err) {
-                    mobiledoc = converters.mobiledocConverter.blankStructure();
+                    mobiledoc = mobiledocLib.blankDocument;
+                }
+
+                // ghostVersion was introduced in 4.0. Any earlier content won't have it set
+                // so we should set it to "3.0" to match rendering output
+                if (!mobiledoc.ghostVersion) {
+                    mobiledoc.ghostVersion = '3.0';
                 }
 
                 mobiledoc.cards.forEach((card) => {
+                    // Ghost 1.0 markdown card = 'card-markdown', Ghost 2.0 markdown card = 'markdown'
+                    if (card[0] === 'card-markdown') {
+                        card[0] = 'markdown';
+                    }
+
                     // Koenig Beta = imageStyle, Ghost 2.0 Koenig = cardWidth
                     if (card[0] === 'image' && card[1].imageStyle) {
                         card[1].cardWidth = card[1].imageStyle;
@@ -216,7 +236,7 @@ class PostsImporter extends BaseImporter {
                 });
 
                 model.mobiledoc = JSON.stringify(mobiledoc);
-                model.html = converters.mobiledocConverter.render(JSON.parse(model.mobiledoc));
+                model.html = mobiledocLib.mobiledocHtmlRenderer.render(JSON.parse(model.mobiledoc));
             }
             this.sanitizePostsMeta(model);
         });

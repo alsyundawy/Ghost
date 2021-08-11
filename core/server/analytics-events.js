@@ -1,16 +1,18 @@
-var _ = require('lodash'),
-    Analytics = require('analytics-node'),
-    config = require('./config'),
-    common = require('./lib/common'),
-    analytics;
+const _ = require('lodash');
+const Analytics = require('analytics-node');
+const config = require('../shared/config');
+const logging = require('@tryghost/logging');
+const sentry = require('../shared/sentry');
+
+// Listens to model events to layer on analytics - also uses the "fake" theme.uploaded event from the theme API
+const events = require('./lib/common/events');
 
 module.exports.init = function () {
-    analytics = new Analytics(config.get('segment:key'));
-    var toTrack,
-        trackDefaults = config.get('segment:trackDefaults') || {},
-        prefix = config.get('segment:prefix') || '';
+    const analytics = new Analytics(config.get('segment:key'));
+    const trackDefaults = config.get('segment:trackDefaults') || {};
+    const prefix = config.get('segment:prefix') || '';
 
-    toTrack = [
+    const toTrack = [
         {
             event: 'post.published',
             name: 'Post Published'
@@ -21,7 +23,10 @@ module.exports.init = function () {
         },
         {
             event: 'theme.uploaded',
-            name: 'Theme Uploaded'
+            name: 'Theme Uploaded',
+            // {keyOnSuppliedEventData: keyOnTrackedEventData}
+            // - used to extract specific properties from event data and give them meaningful names
+            data: {name: 'name'}
         },
         {
             event: 'integration.added',
@@ -30,8 +35,16 @@ module.exports.init = function () {
     ];
 
     _.each(toTrack, function (track) {
-        common.events.on(track.event, function () {
-            analytics.track(_.extend(trackDefaults, {event: prefix + track.name}));
+        events.on(track.event, function (eventData = {}) {
+            // extract desired properties from eventData and rename keys if necessary
+            const data = _.mapValues(track.data || {}, v => eventData[v]);
+
+            try {
+                analytics.track(_.extend(trackDefaults, data, {event: prefix + track.name}));
+            } catch (err) {
+                logging.error(err);
+                sentry.captureException(err);
+            }
         });
     });
 };

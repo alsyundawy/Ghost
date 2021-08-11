@@ -1,5 +1,5 @@
-const express = require('express');
-const settings = require('../services/settings/cache');
+const express = require('../../shared/express');
+const settings = require('../../shared/settings-cache');
 const jose = require('node-jose');
 
 const dangerousPrivateKey = settings.get('ghost_private_key');
@@ -12,7 +12,7 @@ const getSafePublicJWKS = async () => {
 };
 
 module.exports = function setupWellKnownApp() {
-    const wellKnownApp = express();
+    const wellKnownApp = express('well-known');
 
     wellKnownApp.get('/jwks.json', async (req, res) => {
         const jwks = await getSafePublicJWKS();

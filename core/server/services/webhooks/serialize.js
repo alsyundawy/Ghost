@@ -1,9 +1,9 @@
 module.exports = (event, model) => {
     const _ = require('lodash');
-    const sequence = require('../../lib/promise/sequence');
+    const {sequence} = require('@tryghost/promise');
     const api = require('../../api');
 
-    const apiVersion = model.get('api_version') || 'v3';
+    const apiVersion = model.get('api_version') || 'v4';
 
     const resourceName = event.match(/(\w+)\./)[1];
     const docName = `${resourceName}s`;

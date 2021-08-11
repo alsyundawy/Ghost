@@ -45,7 +45,7 @@ defaultPostQuery.options = defaultQueryOptions.options;
  * @returns {Promise}
  */
 function processQuery(query, slugParam, locals) {
-    const api = require('../../../../server/api')[locals.apiVersion];
+    const api = require('../../proxy').api[locals.apiVersion];
 
     query = _.cloneDeep(query);
 
@@ -72,8 +72,8 @@ function fetchData(pathOptions, routerOptions, locals) {
     pathOptions = pathOptions || {};
     routerOptions = routerOptions || {};
 
-    let postQuery = _.cloneDeep(defaultPostQuery),
-        props = {};
+    let postQuery = _.cloneDeep(defaultPostQuery);
+    let props = {};
 
     if (routerOptions.filter) {
         postQuery.options.filter = routerOptions.filter;

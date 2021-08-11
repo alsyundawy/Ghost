@@ -1,9 +1,24 @@
 const models = require('../../models');
-const common = require('../../lib/common');
+const i18n = require('../../../shared/i18n');
+const errors = require('@tryghost/errors');
 const megaService = require('../../services/mega');
 
 module.exports = {
     docName: 'emails',
+
+    browse: {
+        options: [
+            'limit',
+            'fields',
+            'filter',
+            'order',
+            'page'
+        ],
+        permissions: true,
+        async query(frame) {
+            return await models.Email.findPage(frame.options);
+        }
+    },
 
     read: {
         options: [
@@ -22,8 +37,8 @@ module.exports = {
             return models.Email.findOne(frame.data, frame.options)
                 .then((model) => {
                     if (!model) {
-                        throw new common.errors.NotFoundError({
-                            message: common.i18n.t('errors.models.email.emailNotFound')
+                        throw new errors.NotFoundError({
+                            message: i18n.t('errors.models.email.emailNotFound')
                         });
                     }
 
@@ -41,14 +56,14 @@ module.exports = {
             return models.Email.findOne(frame.data, frame.options)
                 .then(async (model) => {
                     if (!model) {
-                        throw new common.errors.NotFoundError({
-                            message: common.i18n.t('errors.models.email.emailNotFound')
+                        throw new errors.NotFoundError({
+                            message: i18n.t('errors.models.email.emailNotFound')
                         });
                     }
 
                     if (model.get('status') !== 'failed') {
-                        throw new common.errors.IncorrectUsageError({
-                            message: common.i18n.t('errors.models.email.retryNotAllowed')
+                        throw new errors.IncorrectUsageError({
+                            message: i18n.t('errors.models.email.retryNotAllowed')
                         });
                     }
 

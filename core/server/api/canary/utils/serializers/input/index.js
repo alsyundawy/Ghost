@@ -23,11 +23,23 @@ module.exports = {
         return require('./users');
     },
 
+    get authors() {
+        return require('./authors');
+    },
+
     get tags() {
         return require('./tags');
     },
 
     get members() {
         return require('./members');
+    },
+
+    get products() {
+        return require('./products');
+    },
+
+    get webhooks() {
+        return require('./webhooks');
     }
 };

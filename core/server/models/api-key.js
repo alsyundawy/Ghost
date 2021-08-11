@@ -45,6 +45,10 @@ const ApiKey = ghostBookshelf.Model.extend({
         return this.belongsTo('Integration');
     },
 
+    user() {
+        return this.belongsTo('User');
+    },
+
     format(attrs) {
         return omit(attrs, 'role');
     },
@@ -67,6 +71,29 @@ const ApiKey = ghostBookshelf.Model.extend({
                 this.set('role_id', null);
             }
         }
+    },
+    onUpdated(model, attrs, options) {
+        if (this.previous('secret') !== this.get('secret')) {
+            this.addAction(model, 'refreshed', options);
+        }
+    },
+
+    getAction(event, options) {
+        const actor = this.getActor(options);
+
+        // @NOTE: we ignore internal updates (`options.context.internal`) for now
+        if (!actor) {
+            return;
+        }
+
+        // @TODO: implement context
+        return {
+            event: event,
+            resource_id: this.id || this.previous('id'),
+            resource_type: 'api_key',
+            actor_id: actor.id,
+            actor_type: actor.type
+        };
     }
 }, {
     refreshSecret(data, options) {
