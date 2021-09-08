@@ -22,15 +22,11 @@ const BETA_FEATURES = [
 ];
 
 const ALPHA_FEATURES = [
-    'emailCardSegments',
     'multipleProducts',
-    'savedIndicator',
-    'featureImgDragDrop',
     'oauthLogin',
     'membersFiltering',
     'emailOnlyPosts',
-    'dashboardTwo',
-    'snippetReplacements'
+    'dashboardTwo'
 ];
 
 module.exports.WRITABLE_KEYS_ALLOWLIST = [...BETA_FEATURES, ...ALPHA_FEATURES];

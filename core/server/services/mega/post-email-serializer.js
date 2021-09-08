@@ -1,10 +1,8 @@
 const _ = require('lodash');
 const juice = require('juice');
 const template = require('./template');
-const labsTemplate = require('./template-labs');
 const settingsCache = require('../../../shared/settings-cache');
 const urlUtils = require('../../../shared/url-utils');
-const labs = require('../../../shared/labs');
 const moment = require('moment-timezone');
 const cheerio = require('cheerio');
 const api = require('../../api');
@@ -218,6 +216,19 @@ const serialize = async (postModel, options = {isBrowserPreview: false, apiVersi
     }
 
     post.html = mobiledocLib.mobiledocHtmlRenderer.render(JSON.parse(post.mobiledoc), {target: 'email'});
+
+    // perform any email specific adjustments to the mobiledoc->HTML render output
+    // body wrapper is required so we can get proper top-level selections
+    let _cheerio = cheerio.load(`<body>${post.html}</body>`);
+    // remove leading/trailing HRs
+    _cheerio(`
+        body > hr:first-child,
+        body > hr:last-child,
+        body > div:first-child > hr:first-child,
+        body > div:last-child > hr:last-child
+    `).remove();
+    post.html = _cheerio('body').html();
+
     post.plaintext = htmlToPlaintext(post.html);
 
     // Outlook will render feature images at full-size breaking the layout.
@@ -253,7 +264,7 @@ const serialize = async (postModel, options = {isBrowserPreview: false, apiVersi
 
     const templateSettings = await getTemplateSettings();
 
-    const render = labs.isSet('emailCardSegments') ? labsTemplate : template;
+    const render = template;
 
     let htmlTemplate = render({post, site: getSite(), templateSettings});
 
@@ -268,7 +279,7 @@ const serialize = async (postModel, options = {isBrowserPreview: false, apiVersi
 
     // convert juiced HTML to a DOM-like interface for further manipulation
     // happens after inlining of CSS so we can change element types without worrying about styling
-    let _cheerio = cheerio.load(juicedHtml);
+    _cheerio = cheerio.load(juicedHtml);
     // force all links to open in new tab
     _cheerio('a').attr('target','_blank');
     // convert figure and figcaption to div so that Outlook applies margins
