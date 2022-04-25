@@ -49,5 +49,10 @@
         "useTinfoil": true,
         "useStructuredData": true
     },
-    "useMinFiles": false
+    "useMinFiles": false,
+    "paths": {
+        "fixtures": "test/utils/fixtures/fixtures",
+        "defaultSettings": "test/utils/fixtures/default-settings.json",
+        "urlCache": "test/utils/fixtures/urls"
+    }
 }

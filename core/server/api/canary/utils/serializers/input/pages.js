@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const debug = require('@tryghost/debug')('api:canary:utils:serializers:input:pages');
-const mapNQLKeyValues = require('@nexes/nql').utils.mapKeyValues;
+const mapNQLKeyValues = require('@tryghost/nql').utils.mapKeyValues;
 const mobiledoc = require('../../../../../lib/mobiledoc');
 const url = require('./utils/url');
 const slugFilterOrder = require('./utils/slug-filter-order');
@@ -38,7 +38,7 @@ function defaultRelations(frame) {
         return false;
     }
 
-    frame.options.withRelated = ['tags', 'authors', 'authors.roles'];
+    frame.options.withRelated = ['tags', 'authors', 'authors.roles', 'tiers'];
 }
 
 function setDefaultOrder(frame) {

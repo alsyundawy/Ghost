@@ -1,7 +1,11 @@
 const ghostBookshelf = require('./base');
-const i18n = require('../../shared/i18n');
+const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
 const urlUtils = require('../../shared/url-utils');
+
+const messages = {
+    tagNotFound: 'Tag not found.'
+};
 
 let Tag;
 let Tags;
@@ -73,13 +77,13 @@ Tag = ghostBookshelf.Model.extend({
         ghostBookshelf.Model.prototype.emitChange.bind(this)(this, eventToTrigger, options);
     },
 
-    onCreated: function onCreated(model, attrs, options) {
+    onCreated: function onCreated(model, options) {
         ghostBookshelf.Model.prototype.onCreated.apply(this, arguments);
 
         model.emitChange('added', options);
     },
 
-    onUpdated: function onUpdated(model, attrs, options) {
+    onUpdated: function onUpdated(model, options) {
         ghostBookshelf.Model.prototype.onUpdated.apply(this, arguments);
 
         model.emitChange('edited', options);
@@ -95,6 +99,14 @@ Tag = ghostBookshelf.Model.extend({
         const self = this;
 
         ghostBookshelf.Model.prototype.onSaving.apply(this, arguments);
+
+        // Support tag creation with `posts: [{..., tags: [{slug: 'new'}]}]`
+        // In that situation we have a slug but no name so validation will fail
+        // unless we set one automatically. Re-using slug for name matches our
+        // opposite name->slug behaviour.
+        if (!newTag.get('name') && newTag.get('slug')) {
+            this.set('name', newTag.get('slug'));
+        }
 
         // name: #later slug: hash-later
         if (/^#/.test(newTag.get('name'))) {
@@ -151,7 +163,7 @@ Tag = ghostBookshelf.Model.extend({
     permittedOptions: function permittedOptions(methodName) {
         let options = ghostBookshelf.Model.permittedOptions.call(this, methodName);
 
-        // whitelists for the `options` hash argument on methods, by method name.
+        // allowlists for the `options` hash argument on methods, by method name.
         // these are the only options that can be passed to Bookshelf / Knex.
         const validOptions = {
             findAll: ['columns'],
@@ -175,7 +187,7 @@ Tag = ghostBookshelf.Model.extend({
             .then(function destroyTagsAndPost(tag) {
                 if (!tag) {
                     return Promise.reject(new errors.NotFoundError({
-                        message: i18n.t('errors.api.tags.tagNotFound')
+                        message: tpl(messages.tagNotFound)
                     }));
                 }
 

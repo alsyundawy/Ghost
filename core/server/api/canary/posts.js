@@ -1,9 +1,13 @@
 const models = require('../../models');
-const i18n = require('../../../shared/i18n');
+const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
 const getPostServiceInstance = require('../../services/posts/posts-service');
-const allowedIncludes = ['tags', 'authors', 'authors.roles', 'email'];
+const allowedIncludes = ['tags', 'authors', 'authors.roles', 'email', 'tiers'];
 const unsafeAttrs = ['status', 'authors', 'visibility'];
+
+const messages = {
+    postNotFound: 'Post not found.'
+};
 
 const postsService = getPostServiceInstance('canary');
 
@@ -73,7 +77,7 @@ module.exports = {
                 .then((model) => {
                     if (!model) {
                         throw new errors.NotFoundError({
-                            message: i18n.t('errors.api.posts.postNotFound')
+                            message: tpl(messages.postNotFound)
                         });
                     }
 
@@ -125,6 +129,7 @@ module.exports = {
             'formats',
             'source',
             'email_recipient_filter',
+            'newsletter_id',
             'send_email_when_published',
             'force_rerender',
             // NOTE: only for internal context
@@ -188,7 +193,7 @@ module.exports = {
                 .then(() => null)
                 .catch(models.Post.NotFoundError, () => {
                     return Promise.reject(new errors.NotFoundError({
-                        message: i18n.t('errors.api.posts.postNotFound')
+                        message: tpl(messages.postNotFound)
                     }));
                 });
         }

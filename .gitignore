@@ -104,6 +104,9 @@ projectFilesBackup
 /content/apps/**/*
 /content/themes/**/*
 /content/images/**/*
+/content/media/**/*
+/content/files/**/*
+/content/public/*
 /content/adapters/storage/**/*
 /content/adapters/scheduling/**/*
 !/content/themes/casper
@@ -122,8 +125,8 @@ test/coverage
 
 # Built asset files
 /core/built
+/core/frontend/public/ghost.min.css
 /core/server/web/admin/views/*.html
-/core/server/public/ghost.min.css
 
 # Caddyfile - for local development with ssl + caddy
 Caddyfile

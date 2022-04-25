@@ -66,6 +66,36 @@ function dropTables(names) {
 }
 
 /**
+ * Creates a migration which will drop an existing table and then re-add a new table based on provided spec
+ * @param {string} name - table name
+ * @param {Object} tableSpec - copy of table schema definition as defined in schema.js at the moment of writing the migration,
+ * this parameter MUST be present, otherwise @daniellockyer will hunt you down
+ *
+ * @returns {Object} migration object returning config/up/down properties
+ */
+function recreateTable(name, tableSpec) {
+    return createNonTransactionalMigration(
+        async function up(connection) {
+            const exists = await connection.schema.hasTable(name);
+
+            if (!exists) {
+                logging.warn(`Failed to drop table: ${name} - table does not exist`);
+            } else {
+                logging.info(`Dropping table: ${name}`);
+                await commands.deleteTable(name, connection);
+                logging.info(`Re-adding table: ${name}`);
+                await commands.createTable(name, connection, tableSpec);
+            }
+        },
+        async function down() {
+            // noop: we cannot go back to old table schema
+            logging.warn(`Ignoring rollback for table recreate: ${name}`);
+            return Promise.resolve();
+        }
+    );
+}
+
+/**
  * Creates a migration which will add a permission to the database
  *
  * @param {Object} config
@@ -143,7 +173,7 @@ function addPermissionToRole(config) {
             }).first();
 
             if (!permission) {
-                throw new errors.GhostError({
+                throw new errors.InternalServerError({
                     message: tpl(messages.permissionRoleActionError, {
                         action: 'add',
                         permission: config.permission,
@@ -158,7 +188,7 @@ function addPermissionToRole(config) {
             }).first();
 
             if (!role) {
-                throw new errors.GhostError({
+                throw new errors.InternalServerError({
                     message: tpl(messages.permissionRoleActionError, {
                         action: 'add',
                         permission: config.permission,
@@ -178,7 +208,7 @@ function addPermissionToRole(config) {
                 return;
             }
 
-            logging.warn(`Adding permission(${config.permission}) to role(${config.role})`);
+            logging.info(`Adding permission(${config.permission}) to role(${config.role})`);
             await connection('permissions_roles').insert({
                 id: ObjectId().toHexString(),
                 permission_id: permission.id,
@@ -191,14 +221,8 @@ function addPermissionToRole(config) {
             }).first();
 
             if (!permission) {
-                throw new errors.GhostError({
-                    message: tpl(messages.permissionRoleActionError, {
-                        action: 'remove',
-                        permission: config.permission,
-                        role: config.role,
-                        resource: 'permission'
-                    })
-                });
+                logging.warn(`Removing permission(${config.permission}) from role(${config.role}) - Permission not found.`);
+                return;
             }
 
             const role = await connection('roles').where({
@@ -206,14 +230,8 @@ function addPermissionToRole(config) {
             }).first();
 
             if (!role) {
-                throw new errors.GhostError({
-                    message: tpl(messages.permissionRoleActionError, {
-                        action: 'remove',
-                        permission: config.permission,
-                        role: config.role,
-                        resource: 'role'
-                    })
-                });
+                logging.warn(`Removing permission(${config.permission}) from role(${config.role}) - Role not found.`);
+                return;
             }
 
             const existingRelation = await connection('permissions_roles').where({
@@ -387,7 +405,8 @@ function createAddColumnMigration(table, column, columnDefinition) {
             column,
             dbIsInCorrectState: hasColumn => hasColumn === false,
             operation: commands.dropColumn,
-            operationVerb: 'Removing'
+            operationVerb: 'Removing',
+            columnDefinition
         })
     );
 }
@@ -421,12 +440,64 @@ function createDropColumnMigration(table, column, columnDefinition) {
     );
 }
 
+/**
+ * Creates a migration which will insert a new setting in settings table
+ * @param {object} settingSpec - setting key, value, group and type
+ *
+ * @returns {Object} migration object returning config/up/down properties
+ */
+function addSetting({key, value, type, group}) {
+    return createTransactionalMigration(
+        async function up(connection) {
+            const settingExists = await connection('settings')
+                .where('key', '=', key)
+                .first();
+            if (settingExists) {
+                logging.warn(`Skipping adding setting: ${key} - setting already exists`);
+                return;
+            }
+
+            logging.info(`Adding setting: ${key}`);
+            const now = connection.raw('CURRENT_TIMESTAMP');
+
+            return connection('settings')
+                .insert({
+                    id: ObjectId().toHexString(),
+                    key,
+                    value,
+                    group,
+                    type,
+                    created_at: now,
+                    created_by: MIGRATION_USER,
+                    updated_at: now,
+                    updated_by: MIGRATION_USER
+                });
+        },
+        async function down(connection) {
+            const settingExists = await connection('settings')
+                .where('key', '=', key)
+                .first();
+            if (!settingExists) {
+                logging.warn(`Skipping dropping setting: ${key} - setting does not exist`);
+                return;
+            }
+
+            logging.info(`Dropping setting: ${key}`);
+            return connection('settings')
+                .where('key', '=', key)
+                .del();
+        }
+    );
+}
+
 module.exports = {
     addTable,
     dropTables,
+    recreateTable,
     addPermission,
     addPermissionToRole,
     addPermissionWithRoles,
+    addSetting,
     createTransactionalMigration,
     createNonTransactionalMigration,
     createIrreversibleMigration,

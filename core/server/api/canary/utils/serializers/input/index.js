@@ -35,8 +35,16 @@ module.exports = {
         return require('./members');
     },
 
+    get media() {
+        return require('./media');
+    },
+
     get products() {
         return require('./products');
+    },
+
+    get tiers() {
+        return require('./tiers');
     },
 
     get webhooks() {

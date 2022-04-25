@@ -5,15 +5,37 @@ const ObjectId = require('bson-objectid');
 const ghostBookshelf = require('./base');
 const baseUtils = require('./base/utils');
 const limitService = require('../services/limits');
-const i18n = require('../../shared/i18n');
+const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
 const security = require('@tryghost/security');
-const {gravatar} = require('../lib/image');
 const {pipeline} = require('@tryghost/promise');
 const validatePassword = require('../lib/validate-password');
 const permissions = require('../services/permissions');
 const urlUtils = require('../../shared/url-utils');
 const activeStates = ['active', 'warn-1', 'warn-2', 'warn-3', 'warn-4'];
+
+const messages = {
+    valueCannotBeBlank: 'Value in [{tableName}.{columnKey}] cannot be blank.',
+    onlyOneRolePerUserSupported: 'Only one role per user is supported at the moment.',
+    methodDoesNotSupportOwnerRole: 'This method does not support assigning the owner role',
+    userNotFound: 'User not found',
+    ownerNotFound: 'Owner not found',
+    notEnoughPermission: 'You do not have permission to perform this action',
+    cannotChangeStatus: 'You cannot change your own status.',
+    cannotChangeOwnRole: 'You cannot change your own role.',
+    cannotChangeOwnersRole: 'Cannot change Owner\'s role',
+    noUserWithEnteredEmailAddr: 'There is no user with that email address.',
+    accountSuspended: 'Your account was suspended.',
+    passwordRequiredForOperation: 'Password is required for this operation',
+    incorrectPassword: 'Your password is incorrect.',
+    onlyOwnerCanTransferOwnerRole: 'Only owners are able to transfer the owner role.',
+    onlyAdmCanBeAssignedOwnerRole: 'Only administrators can be assigned the owner role.',
+    onlyActiveAdmCanBeAssignedOwnerRole: 'Only active administrators can be assigned the owner role.',
+    userUpdateError: {
+        emailIsAlreadyInUse: 'Email is already in use',
+        help: 'Visit and save your profile after logging in to check for problems.'
+    }
+};
 
 /**
  * inactive: owner user before blog setup, suspended users
@@ -98,7 +120,7 @@ User = ghostBookshelf.Model.extend({
         model.emitChange('deleted', options);
     },
 
-    onCreated: function onCreated(model, attrs, options) {
+    onCreated: function onCreated(model, options) {
         ghostBookshelf.Model.prototype.onCreated.apply(this, arguments);
 
         model.emitChange('added', options);
@@ -109,7 +131,7 @@ User = ghostBookshelf.Model.extend({
         }
     },
 
-    onUpdated: function onUpdated(model, response, options) {
+    onUpdated: function onUpdated(model, options) {
         ghostBookshelf.Model.prototype.onUpdated.apply(this, arguments);
 
         model.statusChanging = model.get('status') !== model.previous('status');
@@ -158,7 +180,7 @@ User = ghostBookshelf.Model.extend({
          */
         if (!this.get('name')) {
             throw new errors.ValidationError({
-                message: i18n.t('notices.data.validation.index.valueCannotBeBlank', {
+                message: tpl(messages.valueCannotBeBlank, {
                     tableName: this.tableName,
                     columnKey: 'name'
                 })
@@ -168,6 +190,8 @@ User = ghostBookshelf.Model.extend({
         // If the user's email is set & has changed & we are not importing
         if (self.hasChanged('email') && self.get('email') && !options.importing) {
             tasks.gravatar = (function lookUpGravatar() {
+                const {gravatar} = require('../lib/image');
+
                 return gravatar.lookup({
                     email: self.get('email')
                 }).then(function (response) {
@@ -368,7 +392,7 @@ User = ghostBookshelf.Model.extend({
     permittedOptions: function permittedOptions(methodName, options) {
         let permittedOptionsToReturn = ghostBookshelf.Model.permittedOptions.call(this, methodName);
 
-        // whitelists for the `options` hash argument on methods, by method name.
+        // allowlists for the `options` hash argument on methods, by method name.
         // these are the only options that can be passed to Bookshelf / Knex.
         const validOptions = {
             findOne: ['withRelated', 'status'],
@@ -465,7 +489,7 @@ User = ghostBookshelf.Model.extend({
         if (data.roles && data.roles.length > 1) {
             return Promise.reject(
                 new errors.ValidationError({
-                    message: i18n.t('errors.models.user.onlyOneRolePerUserSupported')
+                    message: tpl(messages.onlyOneRolePerUserSupported)
                 })
             );
         }
@@ -475,7 +499,7 @@ User = ghostBookshelf.Model.extend({
                 return self.getByEmail(data.email, options).then(function then(user) {
                     if (user && user.id !== options.id) {
                         return Promise.reject(new errors.ValidationError({
-                            message: i18n.t('errors.models.user.userUpdateError.emailIsAlreadyInUse')
+                            message: tpl(messages.userUpdateError.emailIsAlreadyInUse)
                         }));
                     }
                 });
@@ -486,7 +510,7 @@ User = ghostBookshelf.Model.extend({
             return ghostBookshelf.Model.edit.call(self, data, options).then((user) => {
                 let roleId;
 
-                if (!data.roles) {
+                if (!data.roles || !data.roles.length) {
                     return user;
                 }
 
@@ -502,7 +526,7 @@ User = ghostBookshelf.Model.extend({
                     if (roleToAssign && roleToAssign.get('name') === 'Owner') {
                         return Promise.reject(
                             new errors.ValidationError({
-                                message: i18n.t('errors.models.user.methodDoesNotSupportOwnerRole')
+                                message: tpl(messages.methodDoesNotSupportOwnerRole)
                             })
                         );
                     } else {
@@ -545,7 +569,7 @@ User = ghostBookshelf.Model.extend({
         // check for too many roles
         if (data.roles && data.roles.length > 1) {
             return Promise.reject(new errors.ValidationError({
-                message: i18n.t('errors.models.user.onlyOneRolePerUserSupported')
+                message: tpl(messages.onlyOneRolePerUserSupported)
             }));
         }
 
@@ -670,7 +694,7 @@ User = ghostBookshelf.Model.extend({
         }, options).then(function (owner) {
             if (!owner) {
                 return Promise.reject(new errors.NotFoundError({
-                    message: i18n.t('errors.models.user.ownerNotFound')
+                    message: tpl(messages.ownerNotFound)
                 }));
             }
 
@@ -699,7 +723,7 @@ User = ghostBookshelf.Model.extend({
             }, {withRelated: ['roles']}).then(function then(foundUserModel) {
                 if (!foundUserModel) {
                     throw new errors.NotFoundError({
-                        message: i18n.t('errors.models.user.userNotFound')
+                        message: tpl(messages.userNotFound)
                     });
                 }
 
@@ -737,7 +761,7 @@ User = ghostBookshelf.Model.extend({
             // Owner cannot be deleted EVER
             if (userModel.hasRole('Owner')) {
                 return Promise.reject(new errors.NoPermissionError({
-                    message: i18n.t('errors.models.user.notEnoughPermission')
+                    message: tpl(messages.notEnoughPermission)
                 }));
             }
 
@@ -752,7 +776,7 @@ User = ghostBookshelf.Model.extend({
         if (action === 'edit' && userModel.id === context.user) {
             if (User.inactiveStates.indexOf(unsafeAttrs.status) !== -1) {
                 return Promise.reject(new errors.NoPermissionError({
-                    message: i18n.t('errors.api.users.cannotChangeStatus')
+                    message: tpl(messages.cannotChangeStatus)
                 }));
             }
         }
@@ -767,7 +791,7 @@ User = ghostBookshelf.Model.extend({
 
             if (roleId !== contextRoleId && editedUserId === context.user) {
                 return Promise.reject(new errors.NoPermissionError({
-                    message: i18n.t('errors.api.users.cannotChangeOwnRole')
+                    message: tpl(messages.cannotChangeOwnRole)
                 }));
             }
 
@@ -787,7 +811,7 @@ User = ghostBookshelf.Model.extend({
                         }
 
                         return Promise.reject(new errors.NoPermissionError({
-                            message: i18n.t('errors.models.user.notEnoughPermission')
+                            message: tpl(messages.notEnoughPermission)
                         }));
                     }
 
@@ -795,7 +819,7 @@ User = ghostBookshelf.Model.extend({
                     if (editedUserId === owner.id) {
                         if (owner.related('roles').at(0).id !== roleId) {
                             return Promise.reject(new errors.NoPermissionError({
-                                message: i18n.t('errors.api.users.cannotChangeOwnersRole')
+                                message: tpl(messages.cannotChangeOwnersRole)
                             }));
                         }
                     } else if (roleId !== contextRoleId) {
@@ -810,7 +834,7 @@ User = ghostBookshelf.Model.extend({
                                 }
 
                                 return Promise.reject(new errors.NoPermissionError({
-                                    message: i18n.t('errors.models.user.notEnoughPermission')
+                                    message: tpl(messages.notEnoughPermission)
                                 }));
                             });
                     }
@@ -820,7 +844,7 @@ User = ghostBookshelf.Model.extend({
                     }
 
                     return Promise.reject(new errors.NoPermissionError({
-                        message: i18n.t('errors.models.user.notEnoughPermission')
+                        message: tpl(messages.notEnoughPermission)
                     }));
                 });
         }
@@ -830,7 +854,7 @@ User = ghostBookshelf.Model.extend({
         }
 
         return Promise.reject(new errors.NoPermissionError({
-            message: i18n.t('errors.models.user.notEnoughPermission')
+            message: tpl(messages.notEnoughPermission)
         }));
     },
 
@@ -843,7 +867,7 @@ User = ghostBookshelf.Model.extend({
             .then((user) => {
                 if (!user) {
                     throw new errors.NotFoundError({
-                        message: i18n.t('errors.models.user.noUserWithEnteredEmailAddr')
+                        message: tpl(messages.noUserWithEnteredEmailAddr)
                     });
                 }
 
@@ -853,7 +877,7 @@ User = ghostBookshelf.Model.extend({
 
                 if (user.isInactive()) {
                     throw new errors.NoPermissionError({
-                        message: i18n.t('errors.models.user.accountSuspended')
+                        message: tpl(messages.accountSuspended)
                     });
                 }
 
@@ -869,7 +893,7 @@ User = ghostBookshelf.Model.extend({
             .catch((err) => {
                 if (err.message === 'NotFound' || err.message === 'EmptyResponse') {
                     throw new errors.NotFoundError({
-                        message: i18n.t('errors.models.user.noUserWithEnteredEmailAddr')
+                        message: tpl(messages.noUserWithEnteredEmailAddr)
                     });
                 }
 
@@ -883,7 +907,7 @@ User = ghostBookshelf.Model.extend({
 
         if (!plainPassword || !hashedPassword) {
             return Promise.reject(new errors.ValidationError({
-                message: i18n.t('errors.models.user.passwordRequiredForOperation')
+                message: tpl(messages.passwordRequiredForOperation)
             }));
         }
 
@@ -894,9 +918,9 @@ User = ghostBookshelf.Model.extend({
                 }
 
                 return Promise.reject(new errors.ValidationError({
-                    context: i18n.t('errors.models.user.incorrectPassword'),
-                    message: i18n.t('errors.models.user.incorrectPassword'),
-                    help: i18n.t('errors.models.user.userUpdateError.help'),
+                    context: tpl(messages.incorrectPassword),
+                    message: tpl(messages.incorrectPassword),
+                    help: tpl(messages.userUpdateError.help),
                     code: 'PASSWORD_INCORRECT'
                 }));
             });
@@ -956,7 +980,7 @@ User = ghostBookshelf.Model.extend({
                 const currentRoles = contextUser.toJSON(options).roles;
                 if (!_.some(currentRoles, {id: ownerRole.id})) {
                     return Promise.reject(new errors.NoPermissionError({
-                        message: i18n.t('errors.models.user.onlyOwnerCanTransferOwnerRole')
+                        message: tpl(messages.onlyOwnerCanTransferOwnerRole)
                     }));
                 }
 
@@ -969,7 +993,7 @@ User = ghostBookshelf.Model.extend({
 
                 if (!user) {
                     return Promise.reject(new errors.NotFoundError({
-                        message: i18n.t('errors.models.user.userNotFound')
+                        message: tpl(messages.userNotFound)
                     }));
                 }
 
@@ -977,13 +1001,13 @@ User = ghostBookshelf.Model.extend({
 
                 if (!_.some(currentRoles, {id: adminRole.id})) {
                     return Promise.reject(new errors.ValidationError({
-                        message: i18n.t('errors.models.user.onlyAdmCanBeAssignedOwnerRole')
+                        message: tpl(messages.onlyAdmCanBeAssignedOwnerRole)
                     }));
                 }
 
                 if (status !== 'active') {
                     return Promise.reject(new errors.ValidationError({
-                        message: i18n.t('errors.models.user.onlyActiveAdmCanBeAssignedOwnerRole')
+                        message: tpl(messages.onlyActiveAdmCanBeAssignedOwnerRole)
                     }));
                 }
 

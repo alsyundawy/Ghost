@@ -2,13 +2,18 @@ const path = require('path');
 const express = require('../../../../shared/express');
 const ampRouter = express.Router('amp');
 
-// Dirty requires
-const {i18n} = require('../../../services/proxy');
+const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
 
-const urlService = require('../../../services/url');
-const helpers = require('../../../services/routing/helpers');
+// Dirty requires
+const urlService = require('../../../../server/services/url');
+const dataService = require('../../../services/data');
+const renderer = require('../../../services/rendering');
 const templateName = 'amp';
+
+const messages = {
+    pageNotFound: 'Page not found.'
+};
 
 function _renderer(req, res, next) {
     res.routerOptions = {
@@ -19,15 +24,15 @@ function _renderer(req, res, next) {
 
     // Renderer begin
     // Format data
-    let data = req.body || {};
+    let body = req.body || {};
 
     // CASE: we only support amp pages for posts that are not static pages
-    if (!data.post || data.post.page) {
-        return next(new errors.NotFoundError({message: i18n.t('errors.errors.pageNotFound')}));
+    if (!body.post || body.post.page) {
+        return next(new errors.NotFoundError({message: tpl(messages.pageNotFound)}));
     }
 
     // Render Call
-    return helpers.renderer(req, res, data);
+    return renderer.renderer(req, res, body);
 }
 
 // This here is a controller.
@@ -61,13 +66,13 @@ function getPostData(req, res, next) {
 
     if (!permalinks) {
         return next(new errors.NotFoundError({
-            message: i18n.t('errors.errors.pageNotFound')
+            message: tpl(messages.pageNotFound)
         }));
     }
 
     // @NOTE: amp is not supported for static pages
     // @TODO: https://github.com/TryGhost/Ghost/issues/10548
-    helpers.entryLookup(urlWithoutSubdirectoryWithoutAmp, {permalinks, query: {controller: 'postsPublic', resource: 'posts'}}, res.locals)
+    dataService.entryLookup(urlWithoutSubdirectoryWithoutAmp, {permalinks, query: {controller: 'postsPublic', resource: 'posts'}}, res.locals)
         .then((result) => {
             if (result && result.entry) {
                 req.body.post = result.entry;

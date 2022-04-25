@@ -17,6 +17,13 @@ function configure(dbConfig) {
         dbConfig.pool = {
             afterCreate(conn, cb) {
                 conn.run('PRAGMA foreign_keys = ON', cb);
+
+                // These two are meant to improve performance at the cost of reliability
+                // Should be safe for tests. We add them here and leave them on
+                if (config.get('env').startsWith('testing')) {
+                    conn.run('PRAGMA synchronous = OFF;');
+                    conn.run('PRAGMA journal_mode = TRUNCATE;');
+                }
             }
         };
 
@@ -25,9 +32,10 @@ function configure(dbConfig) {
         process.env.BTHREADS_BACKEND = 'child_process';
     }
 
-    if (client === 'mysql') {
-        dbConfig.connection.timezone = 'UTC';
+    if (client === 'mysql2') {
+        dbConfig.connection.timezone = 'Z';
         dbConfig.connection.charset = 'utf8mb4';
+        dbConfig.connection.decimalNumbers = true;
 
         // NOTE: disabled so that worker processes can use the db without
         // requiring logging and causing file desriptor leaks.

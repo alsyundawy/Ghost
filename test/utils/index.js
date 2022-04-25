@@ -2,17 +2,18 @@ require('../../core/server/overrides');
 
 // Utility Packages
 const {sequence} = require('@tryghost/promise');
+const debug = require('@tryghost/debug')('test:utils');
+
 const _ = require('lodash');
 
 // Ghost Internals
 const models = require('../../core/server/models');
 
 // Other Test Utilities
-const acceptanceUtils = require('./acceptance-utils');
+const e2eUtils = require('./e2e-utils');
 const APIUtils = require('./api');
 const dbUtils = require('./db-utils');
 const fixtureUtils = require('./fixture-utils');
-const oldIntegrationUtils = require('./old-integration-utils');
 const redirects = require('./redirects');
 const cacheRules = require('./fixtures/cache-rules');
 const context = require('./fixtures/context');
@@ -38,7 +39,6 @@ const initFixtures = function initFixtures() {
  * ## Setup Integration Tests
  * Setup takes a list of arguments like: 'default', 'tag', 'perms:tag', 'perms:init'
  * Setup does 'init' (DB) by default
- * @returns {Function}
  */
 const setup = function setup() {
     /*eslint no-invalid-this: "off"*/
@@ -47,8 +47,13 @@ const setup = function setup() {
     const args = arguments;
 
     return function innerSetup() {
+        debug('Setup start');
         models.init();
-        return initFixtures.apply(self, args);
+        return initFixtures
+            .apply(self, args)
+            .finally(() => {
+                debug('Setup end');
+            });
     };
 };
 
@@ -93,9 +98,9 @@ const createEmailedPost = async function createEmailedPost({postOptions, emailOp
 };
 
 module.exports = {
-    startGhost: acceptanceUtils.startGhost,
-    stopGhost: acceptanceUtils.stopGhost,
-    getExistingData: acceptanceUtils.getExistingData,
+    startGhost: e2eUtils.startGhost,
+    stopGhost: e2eUtils.stopGhost,
+    getExistingData: e2eUtils.getExistingData,
 
     teardownDb: dbUtils.teardown,
     truncate: dbUtils.truncate,
@@ -103,8 +108,6 @@ module.exports = {
     createUser: createUser,
     createPost: createPost,
     createEmailedPost,
-
-    integrationTesting: oldIntegrationUtils,
 
     /**
      * renderObject:    res.render(view, dbResponse)

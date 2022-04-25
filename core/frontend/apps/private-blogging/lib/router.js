@@ -2,7 +2,7 @@ const path = require('path');
 const express = require('../../../../shared/express');
 const middleware = require('./middleware');
 const bodyParser = require('body-parser');
-const routing = require('../../../services/routing');
+const renderer = require('../../../services/rendering');
 const web = require('../../../../server/web');
 const templateName = 'private';
 const privateRouter = express.Router(templateName);
@@ -23,7 +23,7 @@ function _renderer(req, res) {
     }
 
     // Render Call
-    return routing.helpers.renderer(req, res, data);
+    return renderer.renderer(req, res, data);
 }
 
 // password-protected frontend route
@@ -36,7 +36,7 @@ privateRouter
     .post(
         bodyParser.urlencoded({extended: true}),
         middleware.redirectPrivateToHomeIfLoggedIn,
-        web.shared.middlewares.brute.privateBlog,
+        web.shared.middleware.brute.privateBlog,
         middleware.doLoginToPrivateSite,
         _renderer
     );

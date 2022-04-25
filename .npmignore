@@ -4,14 +4,20 @@
 .tmp
 .eslintignore
 .eslintrc.json
+.eslintrc.js
 .npmignore
+.c8rc.json
+jsconfig.json
 changelog.md*
+coverage
 docs/**
 _site/**
 content/adapters/**
 !content/adapters/README.md
 content/apps/**
 !content/apps/README.md
+content/public/**
+!content/public/README.md
 content/data/**
 !content/data/README.md
 content/images/**
@@ -40,7 +46,6 @@ test/**
 CONTRIBUTING.md
 content/themes/casper/SECURITY.md
 SECURITY.md
-.travis.yml
 renovate.json
 *.html
 !core/server/views/**
@@ -54,4 +59,4 @@ gulpfile.js
 package-lock.json
 content/themes/casper/config.*.json
 config.*.json
-!core/server/config/env/**
+!core/shared/config/env/**

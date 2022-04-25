@@ -1,16 +1,14 @@
 const _ = require('lodash');
 
 const api = require('./api');
-const GhostMailer = require('./services/mail').GhostMailer;
 const config = require('../shared/config');
 const urlUtils = require('./../shared/url-utils');
 const jobsService = require('./services/jobs');
+const databaseInfo = require('./data/db/info');
 
 const request = require('@tryghost/request');
 const ghostVersion = require('@tryghost/version');
 const UpdateCheckService = require('@tryghost/update-check-service');
-
-const ghostMailer = new GhostMailer();
 
 /**
  * Initializes and triggers update check
@@ -24,6 +22,9 @@ module.exports = async () => {
     if (_.indexOf(allowedCheckEnvironments, process.env.NODE_ENV) === -1) {
         return;
     }
+
+    const {GhostMailer} = require('./services/mail');
+    const ghostMailer = new GhostMailer();
 
     const updateChecker = new UpdateCheckService({
         api: {
@@ -44,7 +45,7 @@ module.exports = async () => {
         config: {
             mail: config.get('mail'),
             env: config.get('env'),
-            databaseType: config.get('database').client,
+            databaseType: databaseInfo.getEngine(),
             checkEndpoint: config.get('updateCheck:url'),
             isPrivacyDisabled: config.isPrivacyDisabled('useUpdateCheck'),
             notificationGroups: config.get('notificationGroups'),

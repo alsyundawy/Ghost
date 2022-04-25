@@ -1,5 +1,6 @@
 const debug = require('@tryghost/debug')('web:backend');
 const express = require('../../../shared/express');
+const {BASE_API_PATH} = require('../../../shared/url-utils');
 
 /**
  *
@@ -10,9 +11,11 @@ module.exports = () => {
     // BACKEND
     // Wrap the admin and API apps into a single express app for use with vhost
     const backendApp = express('backend');
-    backendApp.use('/ghost/api', require('../api')());
-    backendApp.use('/ghost/oauth', require('../oauth')());
-    backendApp.use('/ghost/.well-known', require('../well-known')());
+
+    backendApp.lazyUse(BASE_API_PATH, require('../api'));
+    backendApp.lazyUse('/ghost/oauth', require('../oauth'));
+    backendApp.lazyUse('/ghost/.well-known', require('../well-known'));
+
     backendApp.use('/ghost', require('../../services/auth/session').createSessionFromToken, require('../admin')());
 
     return backendApp;

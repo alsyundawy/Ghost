@@ -1,8 +1,8 @@
 const debug = require('@tryghost/debug')('services:routing:controllers:preview');
 const config = require('../../../../shared/config');
-const urlService = require('../../url');
+const {routerManager} = require('../');
 const urlUtils = require('../../../../shared/url-utils');
-const helpers = require('../helpers');
+const renderer = require('../../rendering');
 
 /**
  * @description Preview Controller.
@@ -19,7 +19,7 @@ module.exports = function previewController(req, res, next) {
     const params = {
         uuid: req.params.uuid,
         status: 'all',
-        include: 'authors,tags'
+        include: 'authors,tags,tiers'
     };
 
     return api[res.routerOptions.query.controller]
@@ -50,18 +50,17 @@ module.exports = function previewController(req, res, next) {
             }
 
             if (post.status === 'published') {
-                return urlUtils.redirect301(res, urlService.getUrlByResourceId(post.id, {withSubdirectory: true}));
+                return urlUtils.redirect301(res, routerManager.getUrlByResourceId(post.id, {withSubdirectory: true}));
             }
 
             if (res.locals.apiVersion !== 'v0.1' && res.locals.apiVersion !== 'v2') {
                 post.access = !!post.html;
             }
 
-            // @TODO: See helpers/secure
-            helpers.secure(req, post);
+            // @TODO: See renderer/secure
+            renderer.secure(req, post);
 
-            const renderer = helpers.renderEntry(req, res);
-            return renderer(post);
+            return renderer.renderEntry(req, res)(post);
         })
-        .catch(helpers.handleError(next));
+        .catch(renderer.handleError(next));
 };

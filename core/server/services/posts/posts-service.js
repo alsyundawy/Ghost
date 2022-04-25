@@ -1,8 +1,11 @@
+const nql = require('@tryghost/nql');
 const {BadRequestError} = require('@tryghost/errors');
 const tpl = require('@tryghost/tpl');
 
 const messages = {
-    invalidEmailRecipientFilter: 'Invalid filter in email_recipient_filter param.'
+    invalidEmailRecipientFilter: 'Invalid filter in email_recipient_filter param.',
+    invalidVisibilityFilter: 'Invalid visibility filter.',
+    invalidNewsletterId: 'The newsletter_id parameter doesn\'t match any active newsletter.'
 };
 
 class PostsService {
@@ -16,6 +19,16 @@ class PostsService {
 
     async editPost(frame) {
         let model;
+
+        // Make sure the newsletter_id is matching an active newsletter
+        if (frame.options.newsletter_id) {
+            const newsletter = await this.models.Newsletter.findOne({id: frame.options.newsletter_id, status: 'active'}, {transacting: frame.options.transacting});
+            if (!newsletter) {
+                throw new BadRequestError({
+                    message: messages.invalidNewsletterId
+                });
+            }
+        }
 
         if (!frame.options.email_recipient_filter && frame.options.send_email_when_published) {
             await this.models.Base.transaction(async (transacting) => {
@@ -60,10 +73,17 @@ class PostsService {
                 }
             }
 
-            const postPublished = model.wasChanged() && (model.get('status') === 'published') && (model.previous('status') !== 'published');
-            const emailOnlyEnabled = model.related('posts_meta').get('email_only') && this.isSet('emailOnlyPosts');
+            const sendEmail = model.wasChanged() && this.shouldSendEmail(model.get('status'), model.previous('status'));
 
-            if (postPublished || emailOnlyEnabled) {
+            if (sendEmail) {
+                // Set the newsletter_id if it isn't passed to the API
+                if (!frame.options.newsletter_id) {
+                    const newsletters = await this.models.Newsletter.findPage({status: 'active', limit: 1, columns: ['id']}, {transacting: frame.options.transacting});
+                    if (newsletters.data.length > 0) {
+                        frame.options.newsletter_id = newsletters.data[0].id;
+                    }
+                }
+
                 let postEmail = model.relations.email;
 
                 if (!postEmail) {
@@ -77,6 +97,40 @@ class PostsService {
         }
 
         return model;
+    }
+
+    async getProductsFromVisibilityFilter(visibilityFilter) {
+        try {
+            const allProducts = await this.models.Product.findAll();
+            const visibilityFilterJson = nql(visibilityFilter).toJSON();
+            const productsData = (visibilityFilterJson.product ? [visibilityFilterJson] : visibilityFilterJson.$or) || [];
+            const tiers = productsData
+                .map((data) => {
+                    return allProducts.find((p) => {
+                        return p.get('slug') === data.product;
+                    });
+                }).filter(p => !!p).map((d) => {
+                    return d.toJSON();
+                });
+            return tiers;
+        } catch (err) {
+            return Promise.reject(new BadRequestError({
+                message: tpl(messages.invalidVisibilityFilter),
+                context: err.message
+            }));
+        }
+    }
+
+    /**
+     * Calculates if the email should be tried to be sent out
+     * @private
+     * @param {String} currentStatus current status from the post model
+     * @param {String} previousStatus previous status from the post model
+     * @returns {Boolean}
+     */
+    shouldSendEmail(currentStatus, previousStatus) {
+        return (['published', 'sent'].includes(currentStatus))
+            && (!['published', 'sent'].includes(previousStatus));
     }
 
     handleCacheInvalidation(model) {
@@ -124,3 +178,5 @@ const getPostServiceInstance = (apiVersion) => {
 };
 
 module.exports = getPostServiceInstance;
+// exposed for testing purposes only
+module.exports.PostsService = PostsService;

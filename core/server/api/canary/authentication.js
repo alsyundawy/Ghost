@@ -1,7 +1,7 @@
 const Promise = require('bluebird');
 const api = require('./index');
 const config = require('../../../shared/config');
-const i18n = require('../../../shared/i18n');
+const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
 const web = require('../../web');
 const models = require('../../models');
@@ -13,6 +13,10 @@ const apiSettings = require('./index').settings;
 const UsersService = require('../../services/users');
 const userService = new UsersService({dbBackup, models, auth, apiMail, apiSettings});
 const {deleteAllSessions} = require('../../services/auth/session');
+
+const messages = {
+    notTheBlogOwner: 'You are not the site owner.'
+};
 
 module.exports = {
     docName: 'authentication',
@@ -37,6 +41,9 @@ module.exports = {
                         email: frame.data.setup[0].email,
                         password: frame.data.setup[0].password,
                         blogTitle: frame.data.setup[0].blogTitle,
+                        theme: frame.data.setup[0].theme,
+                        accentColor: frame.data.setup[0].accentColor,
+                        description: frame.data.setup[0].description,
                         status: 'active'
                     };
 
@@ -44,10 +51,20 @@ module.exports = {
                 })
                 .then((data) => {
                     try {
-                        return auth.setup.doProduct(data, api.products);
+                        return auth.setup.doFixtures(data);
                     } catch (e) {
                         return data;
                     }
+                })
+                .then((data) => {
+                    try {
+                        return auth.setup.doProductAndNewsletter(data, api);
+                    } catch (e) {
+                        return data;
+                    }
+                })
+                .then((data) => {
+                    return auth.setup.installTheme(data, api);
                 })
                 .then((data) => {
                     return auth.setup.doSettings(data, api.settings);
@@ -67,7 +84,7 @@ module.exports = {
             return models.User.findOne({role: 'Owner', status: 'all'})
                 .then((owner) => {
                     if (owner.id !== frame.options.context.user) {
-                        throw new errors.NoPermissionError({message: i18n.t('errors.api.authentication.notTheBlogOwner')});
+                        throw new errors.NoPermissionError({message: tpl(messages.notTheBlogOwner)});
                     }
                 });
         },
@@ -159,7 +176,7 @@ module.exports = {
                     options = Object.assign(options, {context: {internal: true}});
                     return auth.passwordreset.doReset(options, tokenParts, api.settings)
                         .then((params) => {
-                            web.shared.middlewares.api.spamPrevention.userLogin().reset(frame.options.ip, `${tokenParts.email}login`);
+                            web.shared.middleware.api.spamPrevention.userLogin().reset(frame.options.ip, `${tokenParts.email}login`);
                             return params;
                         });
                 });

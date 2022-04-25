@@ -1,12 +1,18 @@
-const i18n = require('../../../../../../shared/i18n');
-const mapper = require('./utils/mapper');
+const tpl = require('@tryghost/tpl');
+const mappers = require('./mappers');
 const debug = require('@tryghost/debug')('api:canary:utils:serializers:output:authentication');
+
+const messages = {
+    checkEmailForInstructions: 'Check your email for further instructions.',
+    passwordChanged: 'Password changed successfully.',
+    invitationAccepted: 'Invitation accepted.'
+};
 
 module.exports = {
     setup(user, apiConfig, frame) {
         frame.response = {
             users: [
-                mapper.mapUser(user, {options: {context: {internal: true}}})
+                mappers.users(user, {options: {context: {internal: true}}})
             ]
         };
     },
@@ -14,7 +20,7 @@ module.exports = {
     updateSetup(user, apiConfig, frame) {
         frame.response = {
             users: [
-                mapper.mapUser(user, {options: {context: {internal: true}}})
+                mappers.users(user, {options: {context: {internal: true}}})
             ]
         };
     },
@@ -28,7 +34,7 @@ module.exports = {
     generateResetToken(data, apiConfig, frame) {
         frame.response = {
             passwordreset: [{
-                message: i18n.t('common.api.authentication.mail.checkEmailForInstructions')
+                message: tpl(messages.checkEmailForInstructions)
             }]
         };
     },
@@ -36,9 +42,13 @@ module.exports = {
     resetPassword(data, apiConfig, frame) {
         frame.response = {
             passwordreset: [{
-                message: i18n.t('common.api.authentication.mail.passwordChanged')
+                message: tpl(messages.passwordChanged)
             }]
         };
+    },
+
+    resetAllPasswords(data, apiConfig, frame) {
+        frame.response = data;
     },
 
     acceptInvitation(data, apiConfig, frame) {
@@ -46,7 +56,7 @@ module.exports = {
 
         frame.response = {
             invitation: [
-                {message: i18n.t('common.api.authentication.mail.invitationAccepted')}
+                {message: tpl(messages.invitationAccepted)}
             ]
         };
     },

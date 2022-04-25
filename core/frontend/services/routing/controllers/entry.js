@@ -1,9 +1,10 @@
 const debug = require('@tryghost/debug')('services:routing:controllers:entry');
 const url = require('url');
 const config = require('../../../../shared/config');
-const urlService = require('../../../services/url');
+const {routerManager} = require('../');
 const urlUtils = require('../../../../shared/url-utils');
-const helpers = require('../helpers');
+const dataService = require('../../data');
+const renderer = require('../../rendering');
 
 /**
  * @description Entry controller.
@@ -15,7 +16,7 @@ const helpers = require('../helpers');
 module.exports = function entryController(req, res, next) {
     debug('entryController', res.routerOptions);
 
-    return helpers.entryLookup(req.path, res.routerOptions, res.locals)
+    return dataService.entryLookup(req.path, res.routerOptions, res.locals)
         .then(function then(lookup) {
             // Format data 1
             const entry = lookup ? lookup.entry : false;
@@ -60,7 +61,7 @@ module.exports = function entryController(req, res, next) {
              *
              * That's why we have to check against the router type.
              */
-            if (urlService.getResourceById(entry.id).config.type !== res.routerOptions.resourceType) {
+            if (routerManager.getResourceById(entry.id).config.type !== res.routerOptions.resourceType) {
                 debug('not my resource type');
                 return next();
             }
@@ -83,10 +84,9 @@ module.exports = function entryController(req, res, next) {
                 }));
             }
 
-            helpers.secure(req, entry);
+            renderer.secure(req, entry);
 
-            const renderer = helpers.renderEntry(req, res);
-            return renderer(entry);
+            return renderer.renderEntry(req, res)(entry);
         })
-        .catch(helpers.handleError(next));
+        .catch(renderer.handleError(next));
 };

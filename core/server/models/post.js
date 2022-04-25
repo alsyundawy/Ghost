@@ -4,9 +4,9 @@ const uuid = require('uuid');
 const moment = require('moment');
 const Promise = require('bluebird');
 const {sequence} = require('@tryghost/promise');
-const i18n = require('../../shared/i18n');
+const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
-const nql = require('@nexes/nql');
+const nql = require('@tryghost/nql');
 const htmlToPlaintext = require('../../shared/html-to-plaintext');
 const ghostBookshelf = require('./base');
 const config = require('../../shared/config');
@@ -15,6 +15,14 @@ const limitService = require('../services/limits');
 const mobiledocLib = require('../lib/mobiledoc');
 const relations = require('./relations');
 const urlUtils = require('../../shared/url-utils');
+const {Tag} = require('./tag');
+
+const messages = {
+    isAlreadyPublished: 'Your post is already published, please reload your page.',
+    valueCannotBeBlank: 'Value in {key} cannot be blank.',
+    expectedPublishedAtInFuture: 'Date must be at least {cannotScheduleAPostBeforeInMinutes} minutes in the future.',
+    untitled: '(Untitled)'
+};
 
 const MOBILEDOC_REVISIONS_COUNT = 10;
 const ALL_STATUSES = ['published', 'draft', 'scheduled', 'sent'];
@@ -47,9 +55,20 @@ Post = ghostBookshelf.Model.extend({
      */
     defaults: function defaults() {
         let visibility = 'public';
-
-        if (settingsCache.get('default_content_visibility')) {
-            visibility = settingsCache.get('default_content_visibility');
+        let tiers = [];
+        const defaultContentVisibility = settingsCache.get('default_content_visibility');
+        if (defaultContentVisibility) {
+            if (defaultContentVisibility === 'tiers') {
+                const tiersData = settingsCache.get('default_content_visibility_tiers') || [];
+                visibility = 'tiers',
+                tiers = tiersData.map((tierId) => {
+                    return {
+                        id: tierId
+                    };
+                });
+            } else if (defaultContentVisibility !== 'tiers') {
+                visibility = settingsCache.get('default_content_visibility');
+            }
         }
 
         return {
@@ -57,16 +76,18 @@ Post = ghostBookshelf.Model.extend({
             status: 'draft',
             featured: false,
             type: 'post',
+            tiers,
             visibility: visibility,
             email_recipient_filter: 'none'
         };
     },
 
-    relationships: ['tags', 'authors', 'mobiledoc_revisions', 'posts_meta'],
+    relationships: ['tags', 'authors', 'mobiledoc_revisions', 'posts_meta', 'tiers'],
 
     // NOTE: look up object, not super nice, but was easy to implement
     relationshipBelongsTo: {
         tags: 'tags',
+        tiers: 'products',
         authors: 'users',
         posts_meta: 'posts_meta'
     },
@@ -80,6 +101,17 @@ Post = ghostBookshelf.Model.extend({
             targetTableName: 'emails',
             foreignKey: 'post_id'
         }
+    },
+
+    tiers() {
+        return this.belongsToMany('Product', 'posts_products', 'post_id', 'product_id')
+            .withPivot('sort_order')
+            .query('orderBy', 'sort_order', 'ASC')
+            .query((qb) => {
+                // avoids bookshelf adding a `DISTINCT` to the query
+                // we know the result set will already be unique and DISTINCT hurts query performance
+                qb.columns('products.*');
+            });
     },
 
     parse() {
@@ -164,7 +196,7 @@ Post = ghostBookshelf.Model.extend({
 
         // transform visibility NQL queries to special-case values where necessary
         // ensures checks against special-case values such as `{{#has visibility="paid"}}` continue working
-        if (attrs.visibility && !['public', 'members', 'paid'].includes(attrs.visibility)) {
+        if (attrs.visibility && !['public', 'members', 'paid', 'tiers'].includes(attrs.visibility)) {
             if (attrs.visibility === 'status:-free') {
                 attrs.visibility = 'paid';
             } else {
@@ -301,7 +333,7 @@ Post = ghostBookshelf.Model.extend({
      * bookshelf-relations listens on `created` + `updated`.
      * We ensure that we are catching the event after bookshelf relations.
      */
-    onSaved: function onSaved(model, response, options) {
+    onSaved: function onSaved(model, options) {
         ghostBookshelf.Model.prototype.onSaved.apply(this, arguments);
 
         if (options.method !== 'insert') {
@@ -317,7 +349,7 @@ Post = ghostBookshelf.Model.extend({
         }
     },
 
-    onUpdated: function onUpdated(model, attrs, options) {
+    onUpdated: function onUpdated(model, options) {
         ghostBookshelf.Model.prototype.onUpdated.apply(this, arguments);
 
         model.statusChanging = model.get('status') !== model.previous('status');
@@ -481,7 +513,7 @@ Post = ghostBookshelf.Model.extend({
         // @TODO: remove when we have versioning based on updated_at
         if (newStatus !== olderStatus && newStatus === 'scheduled' && olderStatus === 'published') {
             return Promise.reject(new errors.ValidationError({
-                message: i18n.t('errors.models.post.isAlreadyPublished', {key: 'status'})
+                message: tpl(messages.isAlreadyPublished, {key: 'status'})
             }));
         }
 
@@ -495,11 +527,11 @@ Post = ghostBookshelf.Model.extend({
         if (newStatus === 'scheduled') {
             if (!publishedAt) {
                 return Promise.reject(new errors.ValidationError({
-                    message: i18n.t('errors.models.post.valueCannotBeBlank', {key: 'published_at'})
+                    message: tpl(messages.valueCannotBeBlank, {key: 'published_at'})
                 }));
             } else if (!moment(publishedAt).isValid()) {
                 return Promise.reject(new errors.ValidationError({
-                    message: i18n.t('errors.models.post.valueCannotBeBlank', {key: 'published_at'})
+                    message: tpl(messages.valueCannotBeBlank, {key: 'published_at'})
                 }));
                 // CASE: to schedule/reschedule a post, a minimum diff of x minutes is needed (default configured is 2minutes)
             } else if (
@@ -509,7 +541,7 @@ Post = ghostBookshelf.Model.extend({
                 (!options.context || !options.context.internal)
             ) {
                 return Promise.reject(new errors.ValidationError({
-                    message: i18n.t('errors.models.post.expectedPublishedAtInFuture', {
+                    message: tpl(messages.expectedPublishedAtInFuture, {
                         cannotScheduleAPostBeforeInMinutes: config.get('times').cannotScheduleAPostBeforeInMinutes
                     })
                 }));
@@ -521,15 +553,24 @@ Post = ghostBookshelf.Model.extend({
             tagsToSave = [];
 
             //  and deduplicate upper/lowercase tags
-            _.each(this.get('tags'), function each(item) {
+            loopTags: for (const tag of this.get('tags')) {
+                if (!tag.id && !tag.tag_id && tag.slug) {
+                    // Clean up the provided slugs before we do any matching with existing tags
+                    tag.slug = await ghostBookshelf.Model.generateSlug(
+                        Tag,
+                        tag.slug,
+                        {skipDuplicateChecks: true}
+                    );
+                }
+
                 for (i = 0; i < tagsToSave.length; i = i + 1) {
-                    if (tagsToSave[i].name && item.name && tagsToSave[i].name.toLocaleLowerCase() === item.name.toLocaleLowerCase()) {
-                        return;
+                    if (tagsToSave[i].name && tag.name && tagsToSave[i].name.toLocaleLowerCase() === tag.name.toLocaleLowerCase()) {
+                        continue loopTags;
                     }
                 }
 
-                tagsToSave.push(item);
-            });
+                tagsToSave.push(tag);
+            }
 
             this.set('tags', tagsToSave);
         }
@@ -610,7 +651,7 @@ Post = ghostBookshelf.Model.extend({
 
         // disabling sanitization until we can implement a better version
         if (!options.importing) {
-            title = this.get('title') || i18n.t('errors.models.post.untitled');
+            title = this.get('title') || tpl(messages.untitled);
             this.set('title', _.toString(title).trim());
         }
 
@@ -631,6 +672,13 @@ Post = ghostBookshelf.Model.extend({
             if (this.hasChanged('published_by') && !options.importing) {
                 this.set('published_by', this.previous('published_by') ? String(this.previous('published_by')) : null);
             }
+        }
+
+        // newsletter_id is read-only and should only be set using a query param when publishing/scheduling
+        if (options.newsletter_id
+            && this.hasChanged('status')
+            && (newStatus === 'published' || newStatus === 'scheduled')) {
+            this.set('newsletter_id', options.newsletter_id);
         }
 
         // email_recipient_filter is read-only and should only be set using a query param when publishing/scheduling
@@ -837,6 +885,9 @@ Post = ghostBookshelf.Model.extend({
         // CASE: never expose the revisions
         delete attrs.mobiledoc_revisions;
 
+        // CASE: hide the newsletter_id for now
+        delete attrs.newsletter_id;
+
         // If the current column settings allow it...
         if (!options.columns || (options.columns && options.columns.indexOf('primary_tag') > -1)) {
             // ... attach a computed property of primary_tag which is the first tag if it is public, else null
@@ -968,14 +1019,14 @@ Post = ghostBookshelf.Model.extend({
     permittedOptions: function permittedOptions(methodName) {
         let options = ghostBookshelf.Model.permittedOptions.call(this, methodName);
 
-        // whitelists for the `options` hash argument on methods, by method name.
+        // allowlists for the `options` hash argument on methods, by method name.
         // these are the only options that can be passed to Bookshelf / Knex.
         const validOptions = {
             findOne: ['columns', 'importing', 'withRelated', 'require', 'filter'],
             findPage: ['status'],
             findAll: ['columns', 'filter'],
             destroy: ['destroyAll', 'destroyBy'],
-            edit: ['filter', 'email_recipient_filter', 'force_rerender']
+            edit: ['filter', 'email_recipient_filter', 'force_rerender', 'newsletter_id']
         };
 
         // The post model additionally supports having a formats option
@@ -1205,7 +1256,7 @@ Post = ghostBookshelf.Model.extend({
         }
 
         return Promise.reject(new errors.NoPermissionError({
-            message: i18n.t('errors.models.post.notEnoughPermission')
+            message: tpl(messages.notEnoughPermission)
         }));
     }
 });

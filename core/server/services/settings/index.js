@@ -4,23 +4,21 @@
  */
 const events = require('../../lib/common/events');
 const models = require('../../models');
+const labs = require('../../../shared/labs');
 const SettingsCache = require('../../../shared/settings-cache');
+const SettingsBREADService = require('./settings-bread-service');
+const {obfuscatedSetting, isSecretSetting, hideValueIfSecret} = require('./settings-utils');
 
-// The string returned when a setting is set as write-only
-const obfuscatedSetting = '••••••••';
-
-// The function used to decide whether a setting is write-only
-function isSecretSetting(setting) {
-    return /secret/.test(setting.key);
-}
-
-// The function that obfuscates a write-only setting
-function hideValueIfSecret(setting) {
-    if (setting.value && isSecretSetting(setting)) {
-        return {...setting, value: obfuscatedSetting};
-    }
-    return setting;
-}
+/**
+ * @returns {SettingsBREADService} instance of the PostsService
+ */
+const getSettingsBREADServiceInstance = () => {
+    return new SettingsBREADService({
+        SettingsModel: models.Settings,
+        settingsCache: SettingsCache,
+        labsService: labs
+    });
+};
 
 module.exports = {
     /**
@@ -32,9 +30,9 @@ module.exports = {
     },
 
     /**
-     * Shutdown the cache, used in force boot during testing
+     * Restore the cache, used during e2e testing only
      */
-    shutdown() {
+    reset() {
         SettingsCache.reset(events);
     },
 
@@ -74,5 +72,6 @@ module.exports = {
 
     obfuscatedSetting,
     isSecretSetting,
-    hideValueIfSecret
+    hideValueIfSecret,
+    getSettingsBREADServiceInstance
 };

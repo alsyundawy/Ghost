@@ -95,13 +95,17 @@ describe('Config Loader', function () {
             //       and it doesn't make sure to check for "extra" keys
             Object.keys(pathConfig).should.eql([
                 'contentPath',
+                'fixtures',
+                'defaultSettings',
+                'assetSrc',
+                'urlCache',
                 'appRoot',
                 'corePath',
                 'clientAssets',
                 'helperTemplates',
                 'adminViews',
                 'defaultViews',
-                'defaultSettings',
+                'defaultRouteSettings',
                 'internalAppPath',
                 'internalAdaptersPath',
                 'migrationPath',

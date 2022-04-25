@@ -1,14 +1,19 @@
 const models = require('../../models');
-const i18n = require('../../../shared/i18n');
+const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
 const mega = require('../../services/mega');
+
+const messages = {
+    postNotFound: 'Post not found.'
+};
 
 const emailPreview = new mega.EmailPreview({
     apiVersion: 'canary'
 });
 
 module.exports = {
-    docName: 'email_preview',
+    // @TODO make the route match the resource name in 5.0
+    docName: 'email_previews',
 
     read: {
         options: [
@@ -33,7 +38,7 @@ module.exports = {
 
             if (!model) {
                 throw new errors.NotFoundError({
-                    message: i18n.t('errors.api.posts.postNotFound')
+                    message: tpl(messages.postNotFound)
                 });
             }
 
@@ -60,7 +65,7 @@ module.exports = {
 
             if (!model) {
                 throw new errors.NotFoundError({
-                    message: i18n.t('errors.api.posts.postNotFound')
+                    message: tpl(messages.postNotFound)
                 });
             }
 

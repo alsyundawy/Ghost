@@ -74,6 +74,10 @@ table td {
     max-width: 600px;
 }
 
+.content a {
+    overflow-wrap: anywhere;
+}
+
 /* -------------------------------------
     POST CONTENT
 ------------------------------------- */
@@ -144,13 +148,22 @@ dd {
 }
 
 blockquote {
-    margin: 2em 0;
+    margin: 2em 0 2em 0;
     padding: 0 25px 0 25px;
     border-left: ${templateSettings.accentColor || '#15212A'} 2px solid;
     font-size: 17px;
     font-weight: 500;
     line-height: 1.6em;
     letter-spacing: -0.2px;
+}
+
+blockquote.kg-blockquote-alt {
+    border-left: 0 none;
+    padding: 0 50px 0 50px;
+    text-align: center;
+    font-size: 1.2em;
+    font-style: italic;
+    color: #999999;
 }
 
 blockquote p {
@@ -173,7 +186,7 @@ blockquote cite a {
 }
 
 a {
-    color: #15212A;
+    color: ${templateSettings.accentColor || '#15212A'};
     text-decoration: none;
 }
 
@@ -185,46 +198,53 @@ h5,
 h6 {
     margin-top: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
-    line-height: 1.15em;
-    font-weight: 600;
+    line-height: 1.11em;
+    font-weight: 700;
     text-rendering: optimizeLegibility;
 }
 
 h1 {
     margin: 1.5em 0 0.5em 0;
     font-size: 42px;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 h2 {
     margin: 1.5em 0 0.5em 0;
     font-size: 32px;
-    line-height: 1.22em;
 }
 
 h3 {
     margin: 1.5em 0 0.5em 0;
     font-size: 26px;
-    line-height: 1.25em;
 }
 
 h4 {
     margin: 1.8em 0 0.5em 0;
     font-size: 21px;
-    line-height: 1.3em;
+    line-height: 1.2em;
 }
 
 h5 {
     margin: 2em 0 0.5em 0;
     font-size: 19px;
-    line-height: 1.4em;
+    line-height: 1.3em;
 }
 
 h6 {
     margin: 2em 0 0.5em 0;
     font-size: 19px;
-    line-height: 1.4em;
+    line-height: 1.3em;
     font-weight: 700;
+}
+
+h1 strong,
+h2 strong,
+h3 strong,
+h4 strong,
+h5 strong,
+h6 strong {
+    font-weight: 800;
 }
 
 strong {
@@ -250,6 +270,7 @@ code {
 
 pre {
     white-space: pre-wrap;
+    overflow: auto;
     background: #15212A;
     padding: 15px;
     border-radius: 3px;
@@ -287,6 +308,10 @@ figure blockquote p {
 
 .site-info {
     padding-top: 50px;
+}
+
+.site-info-bordered {
+    padding-top: 50px;
     border-bottom: 1px solid #e5eff5;
 }
 
@@ -300,15 +325,20 @@ figure blockquote p {
     padding-bottom: 50px;
 }
 
+.site-title {
+    color: #15212A;
+}
+
 .post-title {
     padding-bottom: 10px;
     font-size: 42px;
     line-height: 1.1em;
-    font-weight: 600;
+    font-weight: 700;
     text-align: center;
 }
 .post-title-serif {
     font-family: Georgia, serif;
+    letter-spacing: -0.01em;
 }
 .post-title-left {
     text-align: left;
@@ -370,7 +400,7 @@ figure blockquote p {
     font-family: Georgia, serif;
     font-size: 18px;
     line-height: 1.5em;
-    color: #23323D;
+    color: #15212A;
     padding-bottom: 20px;
     border-bottom: 1px solid #e5eff5;
 }
@@ -379,15 +409,19 @@ figure blockquote p {
     max-width: 600px !important;
     font-size: 17px;
     line-height: 1.5em;
-    color: #23323D;
+    color: #15212A;
     padding-bottom: 20px;
     border-bottom: 1px solid #e5eff5;
 }
 
 .post-content a,
 .post-content-sans-serif a {
-    color: #08121A;
+    color: ${templateSettings.accentColor || '#08121A'};
     text-decoration: underline;
+}
+
+a[data-flickr-embed] img {
+    height: auto;
 }
 
 .kg-bookmark-card {
@@ -509,10 +543,12 @@ figure blockquote p {
     display: block;
     text-decoration: none !important;
 }
+
 .kg-video-preview table {
     background-size: cover;
     min-height: 200px; /* for when images aren't loaded */
 }
+
 .kg-video-play-button {
     height: 2em;
     width: 3em;
@@ -522,6 +558,7 @@ figure blockquote p {
     font-size: 1em; /* change this to resize */
     background-color: rgba(0,0,0,0.85);
 }
+
 .kg-video-play-button div {
     display: block;
     width: 0;
@@ -531,6 +568,198 @@ figure blockquote p {
     border-color: transparent transparent transparent white;
     border-style: solid;
     border-width: 0.8em 0 0.8em 1.5em;
+}
+
+.kg-nft-link {
+    display: block;
+    text-decoration: none !important;
+    color: #15212A !important;
+    font-family: inherit !important;
+    font-size: 14px;
+    line-height: 1.3em;
+    padding-top: 4px;
+    padding-right: 20px;
+    padding-left: 20px;
+    padding-bottom: 4px;
+}
+
+.kg-twitter-link {
+    display: block;
+    text-decoration: none !important;
+    color: #15212A !important;
+    font-family: inherit !important;
+    font-size: 15px;
+    padding: 8px;
+    line-height: 1.3em;
+}
+
+.kg-audio-thumbnail.placeholder {
+    background: ${templateSettings.accentColor || '#15212A'} !important;
+}
+
+.kg-callout-card {
+    display: flex;
+    margin: 0 0 1.5em 0;
+    padding: 20px 28px;
+    border-radius: 3px;
+}
+
+.kg-callout-card p {
+    margin: 0
+}
+
+.kg-callout-card-grey {
+    background: #eef0f2;
+}
+
+.kg-callout-card-white {
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #dddedf;
+}
+
+.kg-callout-card-blue {
+    background: #E9F6FB;
+}
+
+.kg-callout-card-green {
+    background: #E8F8EA;
+}
+
+.kg-callout-card-yellow {
+    background: #FCF4E3;
+}
+
+.kg-callout-card-red {
+    background: #FBE9E9;
+}
+
+.kg-callout-card-pink {
+    background: #FCEEF8;
+}
+
+.kg-callout-card-purple {
+    background: #F2EDFC;
+}
+
+.kg-callout-card-accent {
+    background: ${templateSettings.accentColor || '#15212A'};
+    color: #fff;
+}
+
+.kg-callout-card-accent a {
+    color: #fff;
+}
+
+.kg-callout-emoji {
+    padding-right: 12px;
+    font-size: 20px;
+}
+
+.kg-header-card {
+    margin: 0 0 1.5em 0;
+    padding: 110px 35px 110px 35px;
+    text-align: center;
+}
+
+.kg-header-card.kg-size-small {
+    padding-top: 75px;
+    padding-bottom: 75px;
+}
+
+.kg-header-card.kg-size-large {
+    padding-top: 140px;
+    padding-bottom: 140px;
+}
+
+.kg-header-card.kg-align-left {
+    text-align: left;
+}
+
+.kg-header-card.kg-style-dark {
+    background: #15171a;
+    color: #ffffff;
+}
+
+.kg-header-card.kg-style-light {
+    background-color: #F9F9FA;
+}
+
+.kg-header-card.kg-style-accent {
+    background: ${templateSettings.accentColor || '#15171a'};
+    color: #ffffff;
+}
+
+.kg-header-card.kg-style-image {
+    background-color: #e7e7eb;
+    background-size: cover;
+    background-position: center center;
+    color: #ffffff;
+}
+
+.kg-header-card h2 {
+    font-size: 3em;
+    font-weight: 700;
+    line-height: 1.1em;
+    margin: 0 0 0.125em;
+}
+
+.kg-header-card h2 strong {
+    font-weight: 800;
+}
+
+.kg-header-card.kg-size-small h2 {
+    font-size: 2.5em;
+}
+
+.kg-header-card.kg-size-large h2 {
+    font-size: 3.5em;
+}
+
+.kg-header-card h3 {
+    font-size: 1.125em;
+    font-weight: 500;
+    line-height: 1.3em;
+    margin: 0;
+}
+
+.kg-header-card h3 strong {
+    font-weight: 700;
+}
+
+.kg-header-card.kg-size-large h3 {
+    font-size: 1.25em;
+}
+
+.kg-header-card.kg-size-small h3 {
+    font-size: 1em;
+}
+
+.kg-header-card-button {
+    margin-top: 1.75em;
+    background: #ffffff;
+    border-radius: 5px;
+    box-sizing: border-box;
+    cursor: pointer;
+    display: inline-block;
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0;
+    padding: 8px 16px;
+    text-decoration: none !important;
+    color: #15171A !important;
+}
+
+.kg-size-large .kg-header-card-button {
+    margin-top: 2em;
+}
+
+.kg-size-small .kg-header-card-button {
+    margin-top: 1.5em;
+}
+
+.kg-style-light .kg-header-card-button {
+    background: ${templateSettings.accentColor || '#15212A'} !important;
+    color: #ffffff !important;
 }
 
 
@@ -606,7 +835,6 @@ figure blockquote p {
     margin: 0;
     padding: 12px 25px;
     text-decoration: none;
-    text-transform: capitalize;
 }
 
 .btn-primary table td {
@@ -808,10 +1036,17 @@ figure blockquote p {
     }
 
     table.body blockquote {
-        font-size: 17px !important;
-        line-height: 1.6em !important;
-        margin-bottom: 0 !important;
-        padding-left: 15px !important;
+        font-size: 17px;
+        line-height: 1.6em;
+        margin-bottom: 0;
+        padding-left: 15px;
+    }
+
+    table.body blockquote.kg-blockquote-alt {
+        border-left: 0 none !important;
+        margin: 0 0 2.5em 0 !important;
+        padding: 0 50px 0 50px !important;
+        font-size: 1.2em;
     }
 
     table.body blockquote + * {
@@ -888,12 +1123,10 @@ ${ templateSettings.showBadge ? `
 }
 ` : ''}
 
-/* ----- ENDIF THE BROWSER ----- */
-
 </style>
 </head>
 
-<body class="">
+<body>
     <span class="preheader">${ post.excerpt ? post.excerpt : `${post.title} – ` }</span>
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="body" width="100%">
 
@@ -927,16 +1160,16 @@ ${ templateSettings.showBadge ? `
 
                                     ${ templateSettings.showHeaderIcon || templateSettings.showHeaderTitle ? `
                                     <tr>
-                                        <td class="site-info" width="100%" align="center">
+                                        <td class="${templateSettings.showHeaderTitle ? `site-info-bordered` : `site-info`}" width="100%" align="center">
                                             <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                                                 ${ templateSettings.showHeaderIcon && site.iconUrl ? `
                                                 <tr>
-                                                    <td class="site-icon"><a href="${site.url}"><img src="${site.iconUrl}" border="0"></a></td>
+                                                    <td class="site-icon"><a href="${site.url}"><img src="${site.iconUrl}" alt="${site.title}" border="0"></a></td>
                                                 </tr>
                                                 ` : ``}
                                                 ${ templateSettings.showHeaderTitle ? `
                                                 <tr>
-                                                    <td class="site-url"><div style="width: 100% !important;"><a href="${site.url}">${site.title}</a></div></td>
+                                                    <td class="site-url"><div style="width: 100% !important;"><a href="${site.url}" class="site-title">${site.title}</a></div></td>
                                                 </tr>
                                                 ` : ``}
                                             </table>
@@ -996,7 +1229,7 @@ ${ templateSettings.showBadge ? `
 
                                     ${ templateSettings.showBadge ? `
                                     <tr>
-                                        <td class="footer-powered"><a href="https://ghost.org/"><img src="https://static.ghost.org/v4.0.0/images/powered.png" border="0" width="142" height="30" class="gh-powered" alt="Publish with Ghost"></a></td>
+                                        <td class="footer-powered"><a href="https://ghost.org/"><img src="https://static.ghost.org/v4.0.0/images/powered.png" border="0" width="142" height="30" class="gh-powered" alt="Powered by Ghost"></a></td>
                                     </tr>
                                     ` : '' }
                                 </table>

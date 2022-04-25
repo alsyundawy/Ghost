@@ -1,4 +1,5 @@
 const logging = require('@tryghost/logging');
+const DatabaseInfo = require('@tryghost/database-info');
 
 module.exports = {
     config: {
@@ -6,7 +7,7 @@ module.exports = {
     },
 
     async up({transacting: knex}) {
-        if (knex.client.config.client !== 'mysql') {
+        if (!DatabaseInfo.isMySQL(knex)) {
             logging.warn('Skipping cleanup of duplicate subscriptions - database is not MySQL');
             return;
         }
@@ -23,6 +24,7 @@ module.exports = {
         }
 
         logging.info(`Found ${duplicates.length} duplicate stripe subscriptions`);
+        // eslint-disable-next-line no-restricted-syntax
         for (const duplicate of duplicates) {
             const subscriptions = await knex('members_stripe_customers_subscriptions')
                 .select()
@@ -36,6 +38,7 @@ module.exports = {
 
             logging.info(`Keeping newest subscription ${newestSubscription.id} - ${newestSubscription.subscription_id}, last updated at ${newestSubscription.updated_at}`);
 
+            // eslint-disable-next-line no-restricted-syntax
             for (const subscriptionToDelete of olderSubscriptions) {
                 logging.info(`Deleting duplicate subscription ${subscriptionToDelete.id} - ${subscriptionToDelete.subscription_id}, last updated at ${subscriptionToDelete.updated_at}`);
                 await knex('members_stripe_customers_subscriptions')

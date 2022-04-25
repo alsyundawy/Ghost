@@ -2,11 +2,19 @@
 //  Example usages
 // `{{#prev_post}}<a href ="{{url}}>previous post</a>{{/prev_post}}'
 // `{{#next_post}}<a href ="{{url absolute="true">next post</a>{{/next_post}}'
+const {api} = require('../services/proxy');
+const {hbs} = require('../services/handlebars');
+const {checks} = require('../services/data');
 
-const {logging, i18n, api, hbs, checks} = require('../services/proxy');
+const logging = require('@tryghost/logging');
+const tpl = require('@tryghost/tpl');
 const get = require('lodash/get');
 const Promise = require('bluebird');
 const moment = require('moment');
+
+const messages = {
+    mustBeCalledAsBlock: 'The {\\{{helperName}}} helper must be called as a block. E.g. {{#{helperName}}}...{{/{helperName}}}'
+};
 
 const createFrame = hbs.handlebars.createFrame;
 
@@ -20,12 +28,13 @@ const buildApiOptions = function buildApiOptions(options, post) {
         /**
          * @deprecated: single authors was superceded by multiple authors in Ghost 1.22.0
          */
-        include: 'author,authors,tags',
+        include: 'author,authors,tags,tiers',
         order: 'published_at ' + order,
         limit: 1,
         // This line deliberately uses double quotes because GQL cannot handle either double quotes
         // or escaped singles, see TryGhost/GQL#34
-        filter: "slug:-" + slug + "+published_at:" + op + "'" + publishedAt + "'" // eslint-disable-line quotes
+        filter: "slug:-" + slug + "+published_at:" + op + "'" + publishedAt + "'", // eslint-disable-line quotes
+        context: {member: options.data.member}
     };
 
     if (get(options, 'hash.in')) {
@@ -41,6 +50,11 @@ const buildApiOptions = function buildApiOptions(options, post) {
     return apiOptions;
 };
 
+/**
+ * @param {*} options
+ * @param {*} data
+ * @returns {Promise<any>}
+ */
 const fetch = function fetch(options, data) {
     const self = this;
     const apiOptions = buildApiOptions(options, this);
@@ -70,6 +84,10 @@ const fetch = function fetch(options, data) {
 // If prevNext method is called without valid post data then we must return a promise, if there is valid post data
 // then the promise is handled in the api call.
 
+/**
+ * @param {*} options
+ * @returns {Promise<any>}
+ */
 module.exports = function prevNext(options) {
     options = options || {};
 
@@ -78,7 +96,7 @@ module.exports = function prevNext(options) {
 
     // Guard against incorrect usage of the helpers
     if (!options.fn || !options.inverse) {
-        data.error = i18n.t('warnings.helpers.mustBeCalledAsBlock', {helperName: options.name});
+        data.error = tpl(messages.mustBeCalledAsBlock, {helperName: options.name});
         logging.warn(data.error);
         return Promise.resolve();
     }
@@ -95,3 +113,6 @@ module.exports = function prevNext(options) {
     // With the guards out of the way, attempt to build the apiOptions, and then fetch the data
     return fetch.call(this, options, data);
 };
+
+module.exports.async = true;
+module.exports.alias = 'next_post';

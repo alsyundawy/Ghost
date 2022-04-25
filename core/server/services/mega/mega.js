@@ -6,7 +6,6 @@ const url = require('url');
 const moment = require('moment');
 const ObjectID = require('bson-objectid');
 const errors = require('@tryghost/errors');
-const i18n = require('../../../shared/i18n');
 const logging = require('@tryghost/logging');
 const settingsCache = require('../../../shared/settings-cache');
 const membersService = require('../members');
@@ -25,7 +24,8 @@ const messages = {
     invalidSegment: 'Invalid segment value. Use one of the valid:"status:free" or "status:-free" values.',
     unexpectedFilterError: 'Unexpected {property} value "{value}", expected an NQL equivalent',
     noneFilterError: 'Cannot send email to "none" {property}',
-    emailSendingDisabled: `Email sending is temporarily disabled because your account is currently in review. You should have an email about this from us already, but you can also reach us any time at support@ghost.org`
+    emailSendingDisabled: `Email sending is temporarily disabled because your account is currently in review. You should have an email about this from us already, but you can also reach us any time at support@ghost.org`,
+    sendEmailRequestFailed: 'The email service was unable to send an email batch.'
 };
 
 const getFromAddress = () => {
@@ -131,7 +131,7 @@ const transformEmailRecipientFilter = (emailRecipientFilter, {errorProperty = 'e
     // `paid` and `free` were swapped out for NQL filters in 4.5.0, we shouldn't see them here now
     case 'paid':
     case 'free':
-        throw new errors.GhostError({
+        throw new errors.InternalServerError({
             message: tpl(messages.unexpectedFilterError, {
                 property: errorProperty,
                 value: emailRecipientFilter
@@ -140,7 +140,7 @@ const transformEmailRecipientFilter = (emailRecipientFilter, {errorProperty = 'e
     case 'all':
         return 'subscribed:true';
     case 'none':
-        throw new errors.GhostError({
+        throw new errors.InternalServerError({
             message: tpl(messages.noneFilterError, {
                 property: errorProperty
             })
@@ -159,6 +159,7 @@ const transformEmailRecipientFilter = (emailRecipientFilter, {errorProperty = 'e
  * @param {object} postModel Post Model Object
  * @param {object} options
  * @param {ValidAPIVersion} options.apiVersion - api version to be used when serializing email data
+ * @param {string} options.newsletter_id - the newsletter_id to send the email to
  */
 
 const addEmail = async (postModel, options) => {
@@ -211,7 +212,8 @@ const addEmail = async (postModel, options) => {
             plaintext: emailData.plaintext,
             submitted_at: moment().toDate(),
             track_opens: !!settingsCache.get('email_track_opens'),
-            recipient_filter: emailRecipientFilter
+            recipient_filter: emailRecipientFilter,
+            newsletter_id: options.newsletter_id
         }, knexOptions);
     } else {
         return existing;
@@ -249,14 +251,14 @@ const retryFailedEmail = async (emailModel) => {
 async function handleUnsubscribeRequest(req) {
     if (!req.url) {
         throw new errors.BadRequestError({
-            message: 'Unsubscribe failed! Could not find member'
+            message: 'Email address not found.'
         });
     }
 
     const {query} = url.parse(req.url, true);
     if (!query || !query.uuid) {
         throw new errors.BadRequestError({
-            message: (query.preview ? 'Unsubscribe preview' : 'Unsubscribe failed! Could not find member')
+            message: (query.preview ? 'Unsubscribe preview' : 'Email address not found.')
         });
     }
 
@@ -266,7 +268,7 @@ async function handleUnsubscribeRequest(req) {
 
     if (!member) {
         throw new errors.BadRequestError({
-            message: 'Unsubscribe failed! Could not find member'
+            message: 'Email address not found.'
         });
     }
 
@@ -276,7 +278,7 @@ async function handleUnsubscribeRequest(req) {
     } catch (err) {
         throw new errors.InternalServerError({
             err,
-            message: 'Failed to unsubscribe member'
+            message: 'Failed to unsubscribe this email address'
         });
     }
 }
@@ -352,9 +354,9 @@ async function sendEmailJob({emailModel, options}) {
             error: errorMessage
         }, {patch: true});
 
-        throw new errors.GhostError({
+        throw new errors.InternalServerError({
             err: error,
-            context: i18n.t('errors.services.mega.requestFailed.error')
+            context: tpl(messages.sendEmailRequestFailed)
         });
     }
 }
@@ -416,7 +418,9 @@ function partitionMembersBySegment(memberRows, segments) {
             segmentedMemberRows = memberRows.filter(member => member.status !== 'free');
             memberRows = memberRows.filter(member => member.status === 'free');
         } else {
-            throw new errors.ValidationError(tpl(messages.invalidSegment));
+            throw new errors.ValidationError({
+                message: tpl(messages.invalidSegment)
+            });
         }
 
         partitions[memberSegment] = segmentedMemberRows;

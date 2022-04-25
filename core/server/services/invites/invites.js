@@ -1,10 +1,18 @@
 const security = require('@tryghost/security');
+const tpl = require('@tryghost/tpl');
+const logging = require('@tryghost/logging');
+
+const messages = {
+    invitedByName: '{invitedByName} has invited you to join {blogName}',
+    errorSendingEmail: {
+        error: 'Error sending email: {message}',
+        help: 'Please check your email settings and resend the invitation.'
+    }
+};
 
 class Invites {
-    constructor({settingsCache, i18n, logging, mailService, urlUtils}) {
+    constructor({settingsCache, mailService, urlUtils}) {
         this.settingsCache = settingsCache;
-        this.i18n = i18n;
-        this.logging = logging;
         this.mailService = mailService;
         this.urlUtils = urlUtils;
     }
@@ -44,7 +52,7 @@ class Invites {
                     mail: [{
                         message: {
                             to: invite.get('email'),
-                            subject: this.i18n.t('common.api.users.mail.invitedByName', {
+                            subject: tpl(messages.invitedByName, {
                                 invitedByName: emailData.invitedByName,
                                 blogName: emailData.blogName
                             }),
@@ -67,12 +75,12 @@ class Invites {
             })
             .catch((err) => {
                 if (err && err.errorType === 'EmailError') {
-                    const errorMessage = this.i18n.t('errors.api.invites.errorSendingEmail.error', {
+                    const errorMessage = tpl(messages.errorSendingEmail.error, {
                         message: err.message
                     });
-                    const helpText = this.i18n.t('errors.api.invites.errorSendingEmail.help');
+                    const helpText = tpl(messages.errorSendingEmail.help);
                     err.message = `${errorMessage} ${helpText}`;
-                    this.logging.warn(err.message);
+                    logging.warn(err.message);
                 }
 
                 return Promise.reject(err);

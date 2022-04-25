@@ -11,7 +11,7 @@ const _ = require('lodash');
 const testUtils = require('../../utils');
 const configUtils = require('../../utils/configUtils');
 const config = require('../../../core/shared/config');
-const ghost = testUtils.startGhost;
+const settingsCache = require('../../../core/shared/settings-cache');
 let request;
 
 describe('Frontend Routing', function () {
@@ -45,7 +45,7 @@ describe('Frontend Routing', function () {
     });
 
     before(function () {
-        return ghost()
+        return testUtils.startGhost()
             .then(function () {
                 request = supertest.agent(config.get('url'));
             });
@@ -185,7 +185,7 @@ describe('Frontend Routing', function () {
                 before(function (done) {
                     configUtils.set('admin:redirects', false);
 
-                    ghost({forceStart: true})
+                    testUtils.startGhost({forceStart: true})
                         .then(function () {
                             request = supertest.agent(config.get('url'));
                             addPosts(done);
@@ -195,7 +195,7 @@ describe('Frontend Routing', function () {
                 after(function (done) {
                     configUtils.restore();
 
-                    ghost({forceStart: true})
+                    testUtils.startGhost({forceStart: true})
                         .then(function () {
                             request = supertest.agent(config.get('url'));
                             addPosts(done);
@@ -219,14 +219,31 @@ describe('Frontend Routing', function () {
             });
 
             describe('amp', function () {
-                it('should 404 for amp parameter', function (done) {
-                    // NOTE: only post pages are supported so the router doesn't have a way to distinguish if
-                    //       the request was done after AMP 'Page' or 'Post'
-                    request.get('/static-page-test/amp/')
-                        .expect('Cache-Control', testUtils.cacheRules.private)
-                        .expect(404)
-                        .expect(/Post not found/)
-                        .end(doEnd(done));
+                describe('amp enabled', function (){
+                    beforeEach(function () {
+                        sinon.stub(settingsCache, 'get').withArgs('amp').returns(true);
+                    });
+                    it('should 404 for amp parameter', function (done) {
+                        // NOTE: only post pages are supported so the router doesn't have a way to distinguish if
+                        //       the request was done after AMP 'Page' or 'Post'
+                        request.get('/static-page-test/amp/')
+                            .expect('Cache-Control', testUtils.cacheRules.private)
+                            .expect(404)
+                            .expect(/Post not found/)
+                            .end(doEnd(done));
+                    });
+                });
+                describe('amp disabled', function (){
+                    beforeEach(function () {
+                        sinon.stub(settingsCache, 'get').withArgs('amp').returns(false);
+                    });
+                    it('should 301 for amp parameter', function (done) {
+                        // NOTE: only post pages are supported so the router doesn't have a way to distinguish if
+                        //       the request was done after AMP 'Page' or 'Post'
+                        request.get('/static-page-test/amp/')
+                            .expect(301)
+                            .end(doEnd(done));
+                    });
                 });
             });
         });

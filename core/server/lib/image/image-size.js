@@ -6,16 +6,20 @@ const path = require('path');
 const Promise = require('bluebird');
 const _ = require('lodash');
 const errors = require('@tryghost/errors');
+const tpl = require('@tryghost/tpl');
+
+const messages = {
+    invalidDimensions: 'Could not fetch image dimensions.'
+};
 
 // these are formats supported by image-size but not probe-image-size
 const FETCH_ONLY_FORMATS = [
-    'cur', 'icns', 'ico', 'dds'
+    'cur', 'icns', 'dds'
 ];
 
 class ImageSize {
-    constructor({config, i18n, storage, storageUtils, validator, urlUtils, request}) {
+    constructor({config, storage, storageUtils, validator, urlUtils, request}) {
         this.config = config;
-        this.i18n = i18n;
         this.storage = storage;
         this.storageUtils = storageUtils;
         this.validator = validator;
@@ -30,6 +34,14 @@ class ImageSize {
             timeout: this.config.get('times:getImageSizeTimeoutInMS') || 10000,
             retry: 0, // for `got`, used with image-size
             encoding: null
+        };
+
+        this.NEEDLE_OPTIONS = {
+            // we need the user-agent, otherwise some https request may fail (e.g. cloudflare)
+            headers: {
+                'User-Agent': 'Mozilla/5.0 Safari/537.36'
+            },
+            response_timeout: this.config.get('times:getImageSizeTimeoutInMS') || 10000
         };
     }
 
@@ -67,7 +79,7 @@ class ImageSize {
             }));
         }
 
-        return probeSizeOf(imageUrl, this.REQUEST_OPTIONS);
+        return probeSizeOf(imageUrl, this.NEEDLE_OPTIONS);
     }
 
     // download full image then use image-size to get it's dimensions
@@ -158,14 +170,14 @@ class ImageSize {
                 statusCode: err.statusCode,
                 context: err.url || imagePath
             }));
-        }).catch({code: 'ETIMEDOUT'}, {code: 'ESOCKETTIMEDOUT'}, {statusCode: 408}, (err) => {
+        }).catch({code: 'ETIMEDOUT'}, {code: 'ESOCKETTIMEDOUT'}, {code: 'ECONNRESET'}, {statusCode: 408}, (err) => {
             return Promise.reject(new errors.InternalServerError({
                 message: 'Request timed out.',
                 code: 'IMAGE_SIZE_URL',
                 statusCode: err.statusCode,
                 context: err.url || imagePath
             }));
-        }).catch({code: 'ENOENT'}, {statusCode: 404}, (err) => {
+        }).catch({code: 'ENOENT'}, {code: 'ENOTFOUND'}, {statusCode: 404}, (err) => {
             return Promise.reject(new errors.NotFoundError({
                 message: 'Image not found.',
                 code: 'IMAGE_SIZE_URL',
@@ -173,7 +185,7 @@ class ImageSize {
                 context: err.url || imagePath
             }));
         }).catch(function (err) {
-            if (errors.utils.isIgnitionError(err)) {
+            if (errors.utils.isGhostError(err)) {
                 return Promise.reject(err);
             }
 
@@ -210,9 +222,9 @@ class ImageSize {
         imagePath = this.urlUtils.urlFor('image', {image: imagePath}, true);
 
         // get the storage readable filePath
-        filePath = this.storageUtils.getLocalFileStoragePath(imagePath);
+        filePath = this.storageUtils.getLocalImagesStoragePath(imagePath);
 
-        return this.storage.getStorage()
+        return this.storage.getStorage('images')
             .read({path: filePath})
             .then((buf) => {
                 debug('Image fetched (storage):', filePath);
@@ -237,7 +249,7 @@ class ImageSize {
                     }
                 }));
             }).catch((err) => {
-                if (errors.utils.isIgnitionError(err)) {
+                if (errors.utils.isGhostError(err)) {
                     return Promise.reject(err);
                 }
 
@@ -263,7 +275,7 @@ class ImageSize {
         }
 
         const originalImagePath = path.join(dir, `${imageName}_o${imageNumber || ''}${ext}`);
-        const originalImageExists = await this.storage.getStorage().exists(originalImagePath);
+        const originalImageExists = await this.storage.getStorage('images').exists(originalImagePath);
 
         return this.getImageSizeFromStoragePath(originalImageExists ? originalImagePath : imagePath);
     }
@@ -316,7 +328,7 @@ class ImageSize {
                 });
             } catch (err) {
                 return reject(new errors.ValidationError({
-                    message: this.i18n.t('errors.utils.images.invalidDimensions', {
+                    message: tpl(messages.invalidDimensions, {
                         file: imagePath,
                         error: err.message
                     })

@@ -8,11 +8,10 @@
   ],
   "ignoreDeps": [
       "got",
-      "ghost-storage-base",
       "intl-messageformat",
       "moment",
       "moment-timezone",
-      "nodemailer",
+      "oembed-parser",
       "simple-dom"
     ],
   "ignorePaths": ["test"],
