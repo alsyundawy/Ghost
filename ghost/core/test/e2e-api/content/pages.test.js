@@ -18,7 +18,7 @@ describe('Pages Content API', function () {
 
     before(async function () {
         agent = await agentProvider.getContentAPIAgent();
-        await fixtureManager.init('users:no-owner', 'user:inactive', 'posts', 'tags:extra', 'api_keys');
+        await fixtureManager.init('users', 'user:inactive', 'posts', 'tags:extra', 'api_keys');
         await agent.authenticate();
     });
 
@@ -38,6 +38,15 @@ describe('Pages Content API', function () {
         const urlParts = new URL(res.body.pages[0].url);
         assert.equal(urlParts.protocol, 'http:');
         assert.equal(urlParts.host, '127.0.0.1:2369');
+    });
+
+    it('Cannot request pages with mobiledoc or lexical formats', async function () {
+        await agent
+            .get(`pages/?formats=mobiledoc,lexical`)
+            .expectStatus(200)
+            .matchBodySnapshot({
+                pages: new Array(5).fill(pageMatcher)
+            });
     });
 
     it('Can request page', async function () {

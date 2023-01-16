@@ -27,7 +27,7 @@ describe('Posts Content API', function () {
 
     before(async function () {
         agent = await agentProvider.getContentAPIAgent();
-        await fixtureManager.init('owner:post', 'users:no-owner', 'user:inactive', 'posts', 'tags:extra', 'api_keys', 'newsletters', 'members:newsletters');
+        await fixtureManager.init('owner:post', 'users', 'user:inactive', 'posts', 'tags:extra', 'api_keys', 'newsletters', 'members:newsletters');
         await agent.authenticate();
 
         // Assign a newsletter to one of the posts
@@ -70,6 +70,15 @@ describe('Posts Content API', function () {
         assert.match(res.body.posts[7].html, /<a href="http:\/\/127.0.0.1:2369\/about#nowhere" title="Relative URL/);
         assert.equal(res.body.posts[9].slug, 'ghostly-kitchen-sink');
         assert.match(res.body.posts[9].html, /<img src="http:\/\/127.0.0.1:2369\/content\/images\/lol.jpg"/);
+    });
+
+    it('Cannot request mobiledoc or lexical formats', async function () {
+        await agent
+            .get(`posts/?formats=mobiledoc,lexical`)
+            .expectStatus(200)
+            .matchBodySnapshot({
+                posts: new Array(11).fill(postMatcher)
+            });
     });
 
     it('Can filter posts by tag', async function () {
