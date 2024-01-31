@@ -1,8 +1,8 @@
 //@ts-check
+const _ = require('lodash');
 const debug = require('@tryghost/debug')('api:endpoints:utils:serializers:output:members');
 const {unparse} = require('@tryghost/members-csv');
 const mappers = require('./mappers');
-const labs = require('../../../../../../shared/labs');
 
 module.exports = {
     browse: createSerializer('browse', paginatedMembers),
@@ -114,6 +114,26 @@ function serializeAttribution(attribution) {
     };
 }
 
+function serializeNewsletter(newsletter) {
+    const newsletterFields = [
+        'id',
+        'name',
+        'description',
+        'status'
+    ];
+
+    return _.pick(newsletter, newsletterFields);
+}
+
+function serializeNewsletters(newsletters) {
+    return newsletters
+        .filter(newsletter => newsletter.status === 'active')
+        .sort((a, b) => {
+            return a.sort_order - b.sort_order;
+        })
+        .map(newsletter => serializeNewsletter(newsletter));
+}
+
 /**
  * @param {import('bookshelf').Model} member
  * @param {object} options
@@ -172,16 +192,10 @@ function serializeMember(member, options) {
         delete subscription.price.product;
     }
 
-    if (labs.isSet('suppressionList')) {
-        serialized.email_suppression = json.email_suppression;
-    }
+    serialized.email_suppression = json.email_suppression;
 
     if (json.newsletters) {
-        serialized.newsletters = json.newsletters
-            .filter(newsletter => newsletter.status === 'active')
-            .sort((a, b) => {
-                return a.sort_order - b.sort_order;
-            });
+        serialized.newsletters = serializeNewsletters(json.newsletters);
     }
     // override the `subscribed` param to mean "subscribed to any active newsletter"
     serialized.subscribed = false;

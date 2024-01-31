@@ -14,6 +14,7 @@ const {http} = require('@tryghost/api-framework');
 const api = require('../../api').endpoints;
 
 const commentRouter = require('../comments');
+const announcementRouter = require('../announcement');
 
 module.exports = function setupMembersApp() {
     debug('Members App setup start');
@@ -46,11 +47,11 @@ module.exports = function setupMembersApp() {
     membersApp.post('/api/member/email', bodyParser.json({limit: '50mb'}), (req, res) => membersService.api.middleware.updateEmailAddress(req, res));
 
     // Remove email from suppression list
-    membersApp.delete('/api/member/suppression', labs.enabledMiddleware('suppressionList'), middleware.deleteSuppression);
+    membersApp.delete('/api/member/suppression', middleware.deleteSuppression);
 
     // Manage session
     membersApp.get('/api/session', middleware.getIdentityToken);
-    membersApp.delete('/api/session', middleware.deleteSession);
+    membersApp.delete('/api/session', bodyParser.json({limit: '5mb'}), middleware.deleteSession);
 
     // NOTE: this is wrapped in a function to ensure we always go via the getter
     membersApp.post(
@@ -78,6 +79,35 @@ module.exports = function setupMembersApp() {
         middleware.authMemberByUuid,
         http(api.feedbackMembers.add)
     );
+
+    // Announcement
+    membersApp.use(
+        '/api/announcement',
+        labs.enabledMiddleware('announcementBar'),
+        middleware.loadMemberSession,
+        announcementRouter()
+    );
+
+    // Recommendations
+    membersApp.post(
+        '/api/recommendations/:id/clicked',
+        middleware.loadMemberSession,
+        http(api.recommendationsPublic.trackClicked)
+    );
+
+    // Recommendations
+    membersApp.post(
+        '/api/recommendations/:id/subscribed',
+        middleware.loadMemberSession,
+        http(api.recommendationsPublic.trackSubscribed)
+    );
+
+    // Allow external systems to read public settings via the members api
+    // Without CORS issues and without a required integration token
+    // 1. Detect if a site is Running Ghost
+    // 2. For recommendations to know when we can offer 'one-click-subscribe' to know if members are enabled
+    // Why not content API? Domain can be different from recommended domain + CORS issues
+    membersApp.get('/api/site', http(api.site.read));
 
     // API error handling
     membersApp.use('/api', errorHandler.resourceNotFound);

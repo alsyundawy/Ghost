@@ -3,6 +3,7 @@ import EmailFailedError from 'ghost-admin/errors/email-failed-error';
 import PreviewModal from './modals/preview';
 import PublishFlowModal from './modals/publish-flow';
 import PublishOptionsResource from 'ghost-admin/helpers/publish-options';
+import TkReminderModal from './modals/tk-reminder';
 import UpdateFlowModal from './modals/update-flow';
 import envConfig from 'ghost-admin/config/environment';
 import {action} from '@ember/object';
@@ -44,6 +45,16 @@ export default class PublishManagement extends Component {
         this.updateFlowModal?.close();
 
         const isValid = await this._validatePost();
+
+        if (this.args.tkCount > 0) {
+            const ignoreTks = await this.modals.open(TkReminderModal, {
+                tkCount: this.args.tkCount
+            });
+
+            if (ignoreTks !== true) {
+                return;
+            }
+        }
 
         if (isValid && !this.publishFlowModal || this.publishFlowModal?.isClosing) {
             this.publishOptions.resetPastScheduledAt();
@@ -166,10 +177,10 @@ export default class PublishManagement extends Component {
 
     @task
     *publishTask({taskName = 'saveTask'} = {}) {
-        const willEmail = this.publishOptions.willEmail;
+        const willEmailImmediately = this.publishOptions.willEmailImmediately;
 
         // clean up blank editor cards
-        // apply cloned mobiledoc
+        // apply cloned lexical
         // apply scratch values
         // generate slug if needed (should never happen - publish flow can't be opened on new posts)
         yield this.args.beforePublish();
@@ -182,7 +193,7 @@ export default class PublishManagement extends Component {
         yield this.args.afterPublish(result);
 
         // if emailed, wait until it has been submitted so we can show a failure message if needed
-        if (willEmail && this.publishOptions.post.email) {
+        if (willEmailImmediately && this.publishOptions.post.email) {
             yield this.confirmEmailTask.perform();
         }
 
@@ -215,6 +226,11 @@ export default class PublishManagement extends Component {
                 pollTimeout += CONFIRM_EMAIL_POLL_LENGTH;
 
                 yield post.reload();
+
+                if (!post.isSent && !post.isPublished) {
+                    // A post that is not published doesn't try to send or retry an email
+                    break;
+                }
 
                 if (post.email.status === 'submitted') {
                     break;

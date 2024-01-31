@@ -22,6 +22,13 @@ const Newsletter = ghostBookshelf.Model.extend({
             show_header_icon: true,
             show_header_title: true,
             show_header_name: true,
+            show_post_title_section: true,
+            show_comment_cta: true,
+            show_subscription_details: false,
+            show_latest_posts: false,
+            background_color: 'light',
+            border_color: null,
+            title_color: null,
             feedback_enabled: false
         };
     },
@@ -143,6 +150,16 @@ const Newsletter = ghostBookshelf.Model.extend({
                         .from('members_newsletters')
                         .whereRaw('members_newsletters.newsletter_id = newsletters.id')
                         .as('count__members');
+                });
+            },
+            active_members(modelOrCollection) {
+                modelOrCollection.query('columns', 'newsletters.*', (qb) => {
+                    qb.count('members_newsletters.id')
+                        .from('members_newsletters')
+                        .join('members', 'members.id', 'members_newsletters.member_id')
+                        .whereRaw('members_newsletters.newsletter_id = newsletters.id')
+                        .andWhere('members.email_disabled', false)
+                        .as('count__active_members');
                 });
             }
         };

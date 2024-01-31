@@ -5,6 +5,8 @@ module.exports = function (environment) {
     let ENV = {
         modulePrefix: 'ghost-admin',
         environment,
+        cdnUrl: process.env.GHOST_CDN_URL || '',
+        editorUrl: process.env.EDITOR_URL || '',
         rootURL: '',
         locationType: 'trailing-hash',
         EmberENV: {
@@ -32,6 +34,10 @@ module.exports = function (environment) {
         },
 
         'ember-simple-auth': { },
+
+        'ember-websockets': {
+            socketIO: true
+        },
 
         '@sentry/ember': {
             disablePerformance: true,

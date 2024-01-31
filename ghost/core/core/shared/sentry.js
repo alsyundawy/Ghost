@@ -1,37 +1,128 @@
 const config = require('./config');
+const logging = require('@tryghost/logging');
+const SentryKnexTracingIntegration = require('./SentryKnexTracingIntegration');
 const sentryConfig = config.get('sentry');
 const errors = require('@tryghost/errors');
+
+const beforeSend = function (event, hint) {
+    try {
+        const exception = hint.originalException;
+        const code = (exception && exception.code) ? exception.code : null;
+        const context = (exception && exception.context) ? exception.context : null;
+        const errorType = (exception && exception.errorType) ? exception.errorType : null;
+        const id = (exception && exception.id) ? exception.id : null;
+        const statusCode = (exception && exception.statusCode) ? exception.statusCode : null;
+        event.tags = event.tags || {};
+
+        if (errors.utils.isGhostError(exception)) {
+            // Unexpected errors have a generic error message, set it back to context if there is one
+            if (code === 'UNEXPECTED_ERROR' && context !== null) {
+                if (event.exception.values && event.exception.values.length > 0) {
+                    event.exception.values[0].type = context;
+                }
+            }
+
+            // This is a mysql2 error — add some additional context
+            if (exception.sql) {
+                const sql = exception.sql;
+                const errno = exception.errno ? exception.errno : null;
+                const sqlErrorCode = exception.sqlErrorCode ? exception.sqlErrorCode : null;
+                const sqlMessage = exception.sqlMessage ? exception.sqlMessage : null;
+                const sqlState = exception.sqlState ? exception.sqlState : null;
+                if (event.exception.values && event.exception.values.length > 0) {
+                    event.exception.values[0].type = `SQL Error ${errno}: ${sqlErrorCode}`;
+                    event.exception.values[0].value = sqlMessage;
+                    event.contexts = event.contexts || {};
+                    event.contexts.mysql = {
+                        errno: errno,
+                        code: sqlErrorCode,
+                        sql: sql,
+                        message: sqlMessage,
+                        state: sqlState
+                    };
+                }
+            }
+
+            // This is a Ghost Error, copy all our extra data to tags
+            event.tags.type = errorType;
+            event.tags.code = code;
+            event.tags.id = id;
+            event.tags.status_code = statusCode;
+        }
+        return event;
+    } catch (error) {
+        // If any errors occur in beforeSend, send the original event to Sentry
+        // Better to have some information than no information
+        return event;
+    }
+};
+
+const ALLOWED_HTTP_TRANSACTIONS = [
+    '/ghost/api', // any Ghost API call
+    '/members/api', // any Members API call
+    '/:slug', // any frontend post/page
+    '/author', // any frontend author page
+    '/tag' // any frontend tag page
+].map((path) => {
+    // Sentry names HTTP transactions like: "<HTTP_METHOD> <PATH>" i.e. "GET /ghost/api/content/settings"
+    // Match any of the paths above with any HTTP method, and also the homepage "GET /"
+    return new RegExp(`^(GET|POST|PUT|DELETE)\\s(?<path>${path}\\/.+|\\/$)`);
+});
+
+const beforeSendTransaction = function (event) {
+    // Drop transactions that are not in the allowed list
+    for (const transaction of ALLOWED_HTTP_TRANSACTIONS) {
+        const match = event.transaction.match(transaction);
+
+        if (match?.groups?.path) {
+            return event;
+        }
+    }
+
+    return null;
+};
 
 if (sentryConfig && !sentryConfig.disabled) {
     const Sentry = require('@sentry/node');
     const version = require('@tryghost/version').full;
-    const environment = config.get('env');
-    Sentry.init({
+
+    let environment = config.get('PRO_ENV');
+    if (!environment) {
+        environment = config.get('env');
+    }
+
+    const sentryInitConfig = {
         dsn: sentryConfig.dsn,
         release: 'ghost@' + version,
         environment: environment,
         maxValueLength: 1000,
-        beforeSend: function (event, hint) {
-            const exception = hint.originalException;
+        integrations: [],
+        beforeSend,
+        beforeSendTransaction
+    };
 
-            event.tags = event.tags || {};
-
-            if (errors.utils.isGhostError(exception)) {
-                // Unexpected errors have a generic error message, set it back to context if there is one
-                if (exception.code === 'UNEXPECTED_ERROR' && exception.context !== null) {
-                    event.exception.values[0].type = exception.context;
-                }
-
-                // This is a Ghost Error, copy all our extra data to tags
-                event.tags.type = exception.errorType;
-                event.tags.code = exception.code;
-                event.tags.id = exception.id;
-                event.tags.statusCode = exception.statusCode;
+    // Enable tracing if sentry.tracing.enabled is true
+    if (sentryConfig.tracing?.enabled === true) {
+        sentryInitConfig.integrations.push(new Sentry.Integrations.Http({tracing: true}));
+        sentryInitConfig.tracesSampleRate = parseFloat(sentryConfig.tracing.sampleRate) || 0.0;
+        // Enable profiling, if configured, only if tracing is also configured
+        if (sentryConfig.profiling?.enabled === true) {
+            // Import Sentry's profiling integration if available
+            let ProfilingIntegration;
+            try {
+                ({ProfilingIntegration} = require('@sentry/profiling-node'));
+            } catch (err) {
+                logging.warn('Sentry Profiling Integration not available');
+                ProfilingIntegration = null;
             }
 
-            return event;
+            if (ProfilingIntegration) {
+                sentryInitConfig.integrations.push(new ProfilingIntegration());
+                sentryInitConfig.profilesSampleRate = parseFloat(sentryConfig.profiling.sampleRate) || 0.0;
+            }
         }
-    });
+    }
+    Sentry.init(sentryInitConfig);
 
     module.exports = {
         requestHandler: Sentry.Handlers.requestHandler(),
@@ -48,7 +139,18 @@ if (sentryConfig && !sentryConfig.disabled) {
                 return (error.statusCode === 500);
             }
         }),
-        captureException: Sentry.captureException
+        tracingHandler: Sentry.Handlers.tracingHandler(),
+        captureException: Sentry.captureException,
+        captureMessage: Sentry.captureMessage,
+        beforeSend: beforeSend,
+        beforeSendTransaction: beforeSendTransaction,
+        initQueryTracing: (knex) => {
+            if (sentryConfig.tracing?.enabled === true) {
+                const integration = new SentryKnexTracingIntegration(knex);
+
+                Sentry.addIntegration(integration);
+            }
+        }
     };
 } else {
     const expressNoop = function (req, res, next) {
@@ -60,6 +162,8 @@ if (sentryConfig && !sentryConfig.disabled) {
     module.exports = {
         requestHandler: expressNoop,
         errorHandler: expressNoop,
-        captureException: noop
+        tracingHandler: expressNoop,
+        captureException: noop,
+        initQueryTracing: noop
     };
 }

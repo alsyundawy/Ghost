@@ -159,7 +159,7 @@ describe('DB API', function () {
     });
 
     it('export can be triggered by Admin authentication', function () {
-        const fsStub = sinon.stub(fs, 'writeFile').resolves();
+        sinon.stub(fs, 'writeFile').resolves();
 
         return request.post(localUtils.API.getApiQuery(`db/backup`))
             .set('Origin', config.get('url'))
@@ -314,7 +314,7 @@ describe('DB API', function () {
             .set('Accept', 'application/json')
             .expect(204);
 
-        const res = await request.post(localUtils.API.getApiQuery('db/'))
+        await request.post(localUtils.API.getApiQuery('db/'))
             .set('Origin', config.get('url'))
             .set('Accept', 'application/json')
             .expect('Content-Type', /json/)
@@ -377,20 +377,24 @@ describe('DB API', function () {
         yearlyPrice.get('stripe_price_id').should.equal('price_d04baebb73');
         yearlyPrice.get('stripe_product_id').should.equal('prod_d2c1708c21');
     });
+
+    it('Can not import a ZIP-file with symlinks', async function () {
+        await request.post(localUtils.API.getApiQuery('db/'))
+            .set('Origin', config.get('url'))
+            .set('Accept', 'application/json')
+            .expect('Content-Type', /json/)
+            .attach('importfile', path.join(__dirname, '/../../../utils/fixtures/import/symlinks.zip'))
+            .expect(415);
+    });
 });
 
 // The following tests will create a new clean database for every test
 describe('DB API (cleaned)', function () {
-    let backupKey;
-    let schedulerKey;
-
     beforeEach(async function () {
         await testUtils.stopGhost();
         await localUtils.startGhost();
         request = supertest.agent(config.get('url'));
         await localUtils.doAuth(request);
-        backupKey = _.find(testUtils.getExistingData().apiKeys, {integration: {slug: 'ghost-backup'}});
-        schedulerKey = _.find(testUtils.getExistingData().apiKeys, {integration: {slug: 'ghost-scheduler'}});
     });
 
     afterEach(function () {
@@ -408,7 +412,7 @@ describe('DB API (cleaned)', function () {
             visibility: 'public'
         }).save();
 
-        const res = await request.post(localUtils.API.getApiQuery('db/'))
+        await request.post(localUtils.API.getApiQuery('db/'))
             .set('Origin', config.get('url'))
             .set('Accept', 'application/json')
             .expect('Content-Type', /json/)

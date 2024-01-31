@@ -1,22 +1,22 @@
-const assert = require('assert');
+const assert = require('assert/strict');
 const fetch = require('node-fetch').default;
 const {agentProvider, mockManager, fixtureManager} = require('../utils/e2e-framework');
 const urlUtils = require('../../core/shared/url-utils');
+const jobService = require('../../core/server/services/jobs/job-service');
 
-// @NOTE: this test suite cannot be run in isolation - most likely because it needs
-//        to have full frontend part of Ghost initialized, not just the backend
 describe('Click Tracking', function () {
     let agent;
 
     before(async function () {
-        agent = await agentProvider.getAdminAPIAgent();
+        const {adminAgent} = await agentProvider.getAgentsWithFrontend();
+        agent = adminAgent;
         await fixtureManager.init('newsletters', 'members:newsletters');
         await agent.loginAsOwner();
     });
 
     beforeEach(function () {
-        mockManager.mockLabsDisabled('emailStability');
         mockManager.mockMail();
+        mockManager.mockMailgun();
     });
 
     afterEach(function () {
@@ -45,8 +45,11 @@ describe('Click Tracking', function () {
             }
         );
 
+        // Wait for the newsletter to be sent
+        await jobService.allSettled();
+
         const {body: {links}} = await agent.get(
-            `/links/?filter=post_id:${post.id}`
+            `/links/?filter=${encodeURIComponent(`post_id:'${post.id}'`)}`
         );
 
         /** @type {(url: string) => Promise<import('node-fetch').Response>} */
@@ -98,13 +101,13 @@ describe('Click Tracking', function () {
         await fetchWithoutFollowingRedirect(urlOfLinkToClick.href);
 
         const {body: {links: [clickedLink]}} = await agent.get(
-            `/links/?filter=post_id:${post.id}`
+            `/links/?filter=${encodeURIComponent(`post_id:'${post.id}'`)}`
         );
 
         const clickCount = clickedLink.count.clicks;
 
         const {body: {events: clickEvents}} = await agent.get(
-            `/members/events/?filter=data.member_id:${memberToClickLink.id}${encodeURIComponent('+')}type:click_event`
+            `/members/events/?filter=${encodeURIComponent(`data.member_id:'${memberToClickLink.id}'+type:click_event`)}`
         );
 
         const clickEvent = clickEvents.find((/** @type any */ event) => {

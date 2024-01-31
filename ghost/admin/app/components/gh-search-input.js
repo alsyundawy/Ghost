@@ -54,17 +54,17 @@ export default class GhSearchInputComponent extends Component {
 
         if (selected.searchable === 'Posts') {
             let id = selected.id.replace('post.', '');
-            this.router.transitionTo('editor.edit', 'post', id);
+            this.router.transitionTo('lexical-editor.edit', 'post', id);
         }
 
         if (selected.searchable === 'Pages') {
             let id = selected.id.replace('page.', '');
-            this.router.transitionTo('editor.edit', 'page', id);
+            this.router.transitionTo('lexical-editor.edit', 'page', id);
         }
 
         if (selected.searchable === 'Users') {
             let id = selected.id.replace('user.', '');
-            this.router.transitionTo('settings.staff.user', id);
+            this.router.transitionTo('settings-x.settings-x', `staff/${id}`);
         }
 
         if (selected.searchable === 'Tags') {
@@ -150,7 +150,8 @@ export default class GhSearchInputComponent extends Component {
 
     _loadSearchable(searchable, content) {
         let url = `${this.store.adapterFor(searchable.model).urlForQuery({}, searchable.model)}/`;
-        let query = {fields: searchable.fields, limit: 'all'};
+        let maxSearchableLimit = '10000';
+        let query = {fields: searchable.fields, limit: maxSearchableLimit};
 
         return this.ajax.request(url, {data: query}).then((response) => {
             const items = response[pluralize(searchable.model)].map(item => ({

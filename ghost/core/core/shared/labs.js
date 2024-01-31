@@ -1,5 +1,4 @@
 const _ = require('lodash');
-const Promise = require('bluebird');
 const errors = require('@tryghost/errors');
 const logging = require('@tryghost/logging');
 const tpl = require('@tryghost/tpl');
@@ -15,24 +14,41 @@ const messages = {
 
 // flags in this list always return `true`, allows quick global enable prior to full flag removal
 const GA_FEATURES = [
-    'suppressionList',
-    'sourceAttribution',
-    'memberAttribution',
     'audienceFeedback',
-    'themeErrorsNotification'
+    'collections',
+    'themeErrorsNotification',
+    'outboundLinkTagging',
+    'announcementBar',
+    'signupForm',
+    'recommendations',
+    'listUnsubscribeHeader',
+    'filterEmailDisabled',
+    'newEmailAddresses'
 ];
 
 // NOTE: this allowlist is meant to be used to filter out any unexpected
 //       input for the "labs" setting value
 const BETA_FEATURES = [
+    'i18n',
     'activitypub',
-    'emailStability'
+    'webmentions'
 ];
 
 const ALPHA_FEATURES = [
     'urlCache',
-    'beforeAfterCard',
-    'lexicalEditor'
+    'lexicalMultiplayer',
+    'websockets',
+    'stripeAutomaticTax',
+    'emailCustomization',
+    'mailEvents',
+    'collectionsCard',
+    'tipsAndDonations',
+    'importMemberTier',
+    'lexicalIndicators',
+    // 'adminXOffers',
+    'filterEmailDisabled',
+    'adminXDemo',
+    'portalImprovements'
 ];
 
 module.exports.GA_KEYS = [...GA_FEATURES];
@@ -49,6 +65,11 @@ module.exports.getAll = () => {
 
     GA_FEATURES.forEach((gaKey) => {
         labs[gaKey] = true;
+    });
+
+    const labsConfig = config.get('labs') || {};
+    Object.keys(labsConfig).forEach((key) => {
+        labs[key] = labsConfig[key];
     });
 
     labs.members = settingsCache.get('members_signup_access') !== 'none';
@@ -98,7 +119,11 @@ module.exports.enabledHelper = function enabledHelper(options, callback) {
     errDetails.help = tpl(options.errorHelp || messages.errorHelp, {url: options.helpUrl});
 
     // eslint-disable-next-line no-restricted-syntax
-    logging.error(new errors.DisabledFeatureError(errDetails));
+    logging.error(new errors.DisabledFeatureError({
+        message: errDetails.message,
+        context: errDetails.context,
+        help: errDetails.help
+    }));
 
     const {SafeString} = require('express-hbs');
     errString = new SafeString(`<script>console.error("${_.values(errDetails).join(' ')}");</script>`);

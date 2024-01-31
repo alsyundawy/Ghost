@@ -1,10 +1,12 @@
 <div class="gh-nav-bottom">
     {{#if this.hasThemeErrors}}
-    <button type="button" class="gh-theme-error-toast" {{on "click" (fn this.openThemeErrors null)}}>
-        <span class="gh-notification-title">Your theme contains errors</span>
-        <span class="gh-theme-error-p">Some functionality on your site may be limited &rarr;</span>
+    <button type="button" class="gh-footer-toast gh-theme-error-toast" {{on "click" (fn this.openThemeErrors null)}}>
+        <span class="gh-footer-toast-title gh-notification-title">Your theme contains errors</span>
+        <span class="gh-footer-toast-p">Some functionality on your site may be limited &rarr;</span>
     </button>
     {{/if}}
+
+    <GhReferralInvite @hasThemeErrors={{this.hasThemeErrors}} />
 
     <div class="flex items-center justify-between">
         <div class="pe-all">
@@ -53,7 +55,7 @@
                         {{/if}}
 
                         <li>
-                            <LinkTo @route="settings.staff.user" @model={{this.session.user.slug}} class="dropdown-item" @role="menuitem" tabindex="-1" data-test-nav="user-profile">
+                            <LinkTo @route="settings-x.settings-x" @model="staff/{{this.session.user.slug}}" class="dropdown-item" @role="menuitem" tabindex="-1" data-test-nav="user-profile">
                                 Your profile
                             </LinkTo>
                         </li>
@@ -97,11 +99,8 @@
             </GhBasicDropdown>
         </div>
         <div class="flex items-center pe-all">
-            {{#if (gh-user-can-admin this.session.user)}}
-                <LinkTo class="gh-nav-bottom-tabicon" @route="settings" @current-when={{this.isSettingsRoute}} data-test-nav="settings">{{svg-jar "settings"}}</LinkTo>
-            {{/if}}
-            {{#if this.session.user.isEditor}}
-                <LinkTo class="gh-nav-bottom-tabicon" @route="settings.staff" @current-when={{this.isSettingsRoute}} data-test-nav="settings">{{svg-jar "settings"}}</LinkTo>
+            {{#if (or (gh-user-can-admin this.session.user) this.session.user.isEditor)}}
+                <LinkTo class="gh-nav-bottom-tabicon" @route="settings-x" @current-when={{this.isSettingsRoute}} data-test-nav="settings">{{svg-jar "settings"}}</LinkTo>
             {{/if}}
             <div class="nightshift-toggle-container">
                 <div class="nightshift-toggle {{if this.feature.nightShift "on"}}" {{action (toggle "nightShift" this.feature)}}>

@@ -1,9 +1,10 @@
 const debug = require('@tryghost/debug')('pipeline');
 const _ = require('lodash');
+const stringify = require('json-stable-stringify');
 const errors = require('@tryghost/errors');
 const {sequence} = require('@tryghost/promise');
 
-const Frame = require('./frame');
+const Frame = require('./Frame');
 const serializers = require('./serializers');
 const validators = require('./validators');
 
@@ -187,7 +188,7 @@ const pipeline = (apiController, apiUtils, apiType) => {
     return keys.reduce((obj, method) => {
         const apiImpl = _.cloneDeep(apiController)[method];
 
-        obj[method] = function wrapper() {
+        obj[method] = async function wrapper() {
             const apiConfig = {docName, method};
             let options;
             let data;
@@ -229,25 +230,36 @@ const pipeline = (apiController, apiUtils, apiType) => {
             frame.docName = docName;
             frame.method = method;
 
-            return Promise.resolve()
-                .then(() => {
-                    return STAGES.validation.input(apiUtils, apiConfig, apiImpl, frame);
-                })
-                .then(() => {
-                    return STAGES.serialisation.input(apiUtils, apiConfig, apiImpl, frame);
-                })
-                .then(() => {
-                    return STAGES.permissions(apiUtils, apiConfig, apiImpl, frame);
-                })
-                .then(() => {
-                    return STAGES.query(apiUtils, apiConfig, apiImpl, frame);
-                })
-                .then((response) => {
-                    return STAGES.serialisation.output(response, apiUtils, apiConfig, apiImpl, frame);
-                })
-                .then(() => {
-                    return frame.response;
-                });
+            let cacheKeyData = frame.options;
+            if (apiImpl.generateCacheKeyData) {
+                cacheKeyData = await apiImpl.generateCacheKeyData(frame);
+            }
+
+            const cacheKey = stringify(cacheKeyData);
+
+            if (apiImpl.cache) {
+                const response = await apiImpl.cache.get(cacheKey, getResponse);
+                if (response) {
+                    return Promise.resolve(response);
+                }
+            }
+
+            async function getResponse() {
+                await STAGES.validation.input(apiUtils, apiConfig, apiImpl, frame);
+                await STAGES.serialisation.input(apiUtils, apiConfig, apiImpl, frame);
+                await STAGES.permissions(apiUtils, apiConfig, apiImpl, frame);
+                const response = await STAGES.query(apiUtils, apiConfig, apiImpl, frame);
+                await STAGES.serialisation.output(response, apiUtils, apiConfig, apiImpl, frame);
+                return frame.response;
+            }
+
+            const response = await getResponse();
+
+            if (apiImpl.cache) {
+                await apiImpl.cache.set(cacheKey, response);
+            }
+
+            return response;
         };
 
         Object.assign(obj[method], apiImpl);

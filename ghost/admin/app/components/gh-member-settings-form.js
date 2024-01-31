@@ -63,6 +63,7 @@ export default class extends Component {
         let subscriptionData = subscriptions.filter((sub) => {
             return !!sub.price;
         }).map((sub) => {
+            const periodEnded = sub.current_period_end && new Date(sub.current_period_end) < new Date();
             const data = {
                 ...sub,
                 attribution: {
@@ -72,6 +73,8 @@ export default class extends Component {
                 },
                 startDate: sub.start_date ? moment(sub.start_date).format('D MMM YYYY') : '-',
                 validUntil: sub.current_period_end ? moment(sub.current_period_end).format('D MMM YYYY') : '-',
+                hasEnded: sub.status === 'canceled' && periodEnded,
+                willEndSoon: sub.cancel_at_period_end || (sub.status === 'canceled' && !periodEnded),
                 cancellationReason: sub.cancellation_reason,
                 price: {
                     ...sub.price,
@@ -88,7 +91,7 @@ export default class extends Component {
             }
 
             if (!sub.id && sub.tier?.expiry_at) {
-                data.compExpiry = moment(sub.tier.expiry_at).format('D MMM YYYY');
+                data.compExpiry = moment(sub.tier.expiry_at).utc().format('D MMM YYYY');
             }
             return data;
         });
@@ -116,18 +119,9 @@ export default class extends Component {
         return null;
     }
 
-    get canShowSingleNewsletter() {
-        return (
-            this.newslettersList?.length === 1
-            && this.settings.editorDefaultEmailRecipients !== 'disabled'
-            && !this.feature.get('suppressionList')
-        );
-    }
-
     get canShowMultipleNewsletters() {
         return (
-            (this.newslettersList?.length > 1 || this.feature.get('suppressionList'))
-            && this.settings.editorDefaultEmailRecipients !== 'disabled'
+            this.settings.editorDefaultEmailRecipients !== 'disabled'
         );
     }
 

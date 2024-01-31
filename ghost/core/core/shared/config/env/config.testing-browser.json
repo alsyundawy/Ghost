@@ -43,6 +43,18 @@
             "maxWait": 3600000,
             "lifetime": 3600,
             "freeRetries":99
+        },
+        "webmentions_block": {
+            "minWait": 100000,
+            "maxWait": 100000,
+            "lifetime": 3600,
+            "freeRetries": 3
+        },
+        "email_preview_block": {
+            "minWait": 360000,
+            "maxWait": 360000,
+            "lifetime": 3600,
+            "freeRetries": 10
         }
     },
     "privacy": {
@@ -54,5 +66,6 @@
         "fixtures": "test/utils/fixtures/fixtures",
         "defaultSettings": "test/utils/fixtures/default-settings-browser.json",
         "urlCache": "test/utils/fixtures/urls"
-    }
+    },
+    "enableDeveloperExperiments": true
 }
