@@ -36,6 +36,7 @@ const BETA_FEATURES = [
 ];
 
 const ALPHA_FEATURES = [
+    'NestPlayground',
     'urlCache',
     'lexicalMultiplayer',
     'websockets',
@@ -47,7 +48,8 @@ const ALPHA_FEATURES = [
     'importMemberTier',
     'lexicalIndicators',
     // 'adminXOffers',
-    'adminXDemo'
+    'adminXDemo',
+    'onboardingChecklist'
 ];
 
 module.exports.GA_KEYS = [...GA_FEATURES];

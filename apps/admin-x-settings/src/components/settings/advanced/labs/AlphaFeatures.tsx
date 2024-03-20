@@ -55,6 +55,14 @@ const features = [{
     title: 'New email addresses',
     description: 'For self hosters, forces the usage of the mail.from config as from address for all outgoing emails',
     flag: 'newEmailAddresses'
+},{
+    title: 'Onboarding checklist',
+    description: 'Onboarding checklist that helps new customers get started',
+    flag: 'onboardingChecklist'
+},{
+    title: 'NestJS Playground',
+    description: 'Wires up the Ghost NestJS App to the Admin API',
+    flag: 'NestPlayground'
 }];
 
 const AlphaFeatures: React.FC = () => {
