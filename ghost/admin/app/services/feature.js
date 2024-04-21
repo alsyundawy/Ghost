@@ -81,6 +81,8 @@ export default class FeatureService extends Service {
     @feature('adminXDemo') adminXDemo;
     @feature('portalImprovements') portalImprovements;
     @feature('onboardingChecklist') onboardingChecklist;
+    @feature('membersSpamPrevention') membersSpamPrevention;
+    @feature('internalLinking') internalLinking;
 
     _user = null;
 

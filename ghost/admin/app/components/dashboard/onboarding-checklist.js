@@ -1,39 +1,30 @@
 import Component from '@glimmer/component';
+import ShareModal from './onboarding/share-modal';
 import {action} from '@ember/object';
-import {tracked} from '@glimmer/tracking';
+import {inject} from 'ghost-admin/decorators/inject';
+import {inject as service} from '@ember/service';
 
 export default class OnboardingChecklist extends Component {
-    @tracked customizePublication = false;
-    @tracked createPost = false;
-    @tracked buildAudience = false;
-    @tracked tellWorld = false;
+    @service modals;
+    @service onboarding;
 
-    @tracked showMemberTierModal = false;
+    @inject config;
 
-    @action
-    completeStep(step) {
-        this.completed = !this.completed;
+    shareModal = null;
 
-        switch (step) {
-        case 'customizePublication':
-            this.customizePublication = !this.customizePublication;
-            break;
-        case 'createPost':
-            this.createPost = !this.createPost;
-            break;
-        case 'buildAudience':
-            this.buildAudience = !this.buildAudience;
-            break;
-        case 'tellWorld':
-            this.tellWorld = !this.tellWorld;
-            break;
-        default:
-            break;
-        }
+    willDestroy() {
+        super.willDestroy(...arguments);
+        this.dismissModal?.close();
+        this.shareModal?.close();
+    }
+
+    get siteUrl() {
+        return this.config.blogTitle;
     }
 
     @action
-    closeModal() {
-        this.closeModal();
+    openShareModal() {
+        this.onboarding.markStepCompleted('share-publication');
+        this.shareModal = this.modals.open(ShareModal);
     }
 }

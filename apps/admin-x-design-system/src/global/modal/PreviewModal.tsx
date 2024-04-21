@@ -265,6 +265,7 @@ export const PreviewModalContent: React.FC<PreviewModalProps> = ({
             afterClose={afterClose}
             animate={false}
             backDropClick={backDropClick}
+            dirty={dirty}
             footer={false}
             height={height}
             padding={false}
@@ -275,7 +276,7 @@ export const PreviewModalContent: React.FC<PreviewModalProps> = ({
             hideXOnMobile
         >
             <div className='flex h-full grow'>
-                <div className={`relative hidden grow flex-col [@media(min-width:801px)]:!visible [@media(min-width:801px)]:!flex ${previewBgColor === 'grey' ? 'bg-grey-50' : 'bg-white'}`}>
+                <div className={`relative hidden grow flex-col [@media(min-width:801px)]:!visible [@media(min-width:801px)]:!flex ${previewBgColor === 'grey' ? 'bg-grey-50' : 'bg-white dark:bg-black'}`}>
                     {preview}
                 </div>
                 {sidebar &&
