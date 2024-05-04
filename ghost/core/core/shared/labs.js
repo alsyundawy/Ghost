@@ -51,9 +51,7 @@ const ALPHA_FEATURES = [
     'tipsAndDonations',
     'importMemberTier',
     'lexicalIndicators',
-    // 'adminXOffers',
-    'adminXDemo',
-    'membersSpamPrevention'
+    'adminXDemo'
 ];
 
 module.exports.GA_KEYS = [...GA_FEATURES];
@@ -80,6 +78,10 @@ module.exports.getAll = () => {
     labs.members = settingsCache.get('members_signup_access') !== 'none';
 
     return labs;
+};
+
+module.exports.getAllFlags = function () {
+    return [...GA_FEATURES, ...BETA_FEATURES, ...ALPHA_FEATURES];
 };
 
 /**
