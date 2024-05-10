@@ -111,11 +111,18 @@ module.exports = class RouterController {
             return res.end('Bad Request.');
         }
 
+        const subscriptions = await member.related('stripeSubscriptions').fetch();
+
+        const activeSubscription = subscriptions.models.find((sub) => {
+            return ['active', 'trialing', 'unpaid', 'past_due'].includes(sub.get('status'));
+        });
+
+        let currency = activeSubscription?.get('plan_currency') || undefined;
+
         let customer;
         if (!req.body.subscription_id) {
             customer = await this._stripeAPIService.getCustomerForMemberCheckoutSession(member);
         } else {
-            const subscriptions = await member.related('stripeSubscriptions').fetch();
             const subscription = subscriptions.models.find((sub) => {
                 return sub.get('subscription_id') === req.body.subscription_id;
             });
@@ -126,13 +133,15 @@ module.exports = class RouterController {
                 });
                 return res.end(`Could not find subscription ${req.body.subscription_id}`);
             }
+            currency = subscription.get('plan_currency') || undefined;
             customer = await this._stripeAPIService.getCustomer(subscription.get('customer_id'));
         }
 
         const session = await this._stripeAPIService.createCheckoutSetupSession(customer, {
             successUrl: req.body.successUrl,
             cancelUrl: req.body.cancelUrl,
-            subscription_id: req.body.subscription_id
+            subscription_id: req.body.subscription_id,
+            currency
         });
         const publicKey = this._stripeAPIService.getPublicKey();
         const sessionInfo = {
