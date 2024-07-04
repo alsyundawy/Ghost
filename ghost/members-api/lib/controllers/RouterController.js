@@ -8,7 +8,9 @@ const messages = {
     emailRequired: 'Email is required.',
     badRequest: 'Bad Request.',
     notFound: 'Not Found.',
+    offerNotFound: 'This offer does not exist.',
     offerArchived: 'This offer is archived.',
+    tierNotFound: 'This tier does not exist.',
     tierArchived: 'This tier is archived.',
     existingSubscription: 'A subscription exists for this Member.',
     unableToCheckout: 'Unable to initiate checkout session',
@@ -204,7 +206,6 @@ module.exports = class RouterController {
      * @returns
      */
     async _getSubscriptionCheckoutData(body) {
-        const ghostPriceId = body.priceId;
         const tierId = body.tierId;
         const offerId = body.offerId;
 
@@ -213,44 +214,67 @@ module.exports = class RouterController {
         let offer;
 
         // Validate basic input
-        if (!ghostPriceId && !offerId && !tierId && !cadence) {
+        if (!offerId && !tierId) {
+            logging.error('[RouterController._getSubscriptionCheckoutData] Expected offerId or tierId, received none');
             throw new BadRequestError({
-                message: tpl(messages.badRequest)
+                message: tpl(messages.badRequest),
+                context: 'Expected offerId or tierId, received none'
             });
         }
 
-        if (offerId && (ghostPriceId || (tierId && cadence))) {
+        if (offerId && tierId) {
+            logging.error('[RouterController._getSubscriptionCheckoutData] Expected offerId or tierId, received both');
             throw new BadRequestError({
-                message: tpl(messages.badRequest)
-            });
-        }
-
-        if (ghostPriceId && tierId && cadence) {
-            throw new BadRequestError({
-                message: tpl(messages.badRequest)
+                message: tpl(messages.badRequest),
+                context: 'Expected offerId or tierId, received both'
             });
         }
 
         if (tierId && !cadence) {
+            logging.error('[RouterController._getSubscriptionCheckoutData] Expected cadence to be "month" or "year", received ', cadence);
             throw new BadRequestError({
-                message: tpl(messages.badRequest)
+                message: tpl(messages.badRequest),
+                context: 'Expected cadence to be "month" or "year", received ' + cadence
             });
         }
 
-        if (cadence && cadence !== 'month' && cadence !== 'year') {
+        if (tierId && cadence && cadence !== 'month' && cadence !== 'year') {
+            logging.error('[RouterController._getSubscriptionCheckoutData] Expected cadence to be "month" or "year", received ', cadence);
             throw new BadRequestError({
-                message: tpl(messages.badRequest)
+                message: tpl(messages.badRequest),
+                context: 'Expected cadence to be "month" or "year", received "' + cadence + '"'
             });
         }
 
         // Fetch tier and offer
         if (offerId) {
             offer = await this._offersAPI.getOffer({id: offerId});
+
+            if (!offer) {
+                throw new BadRequestError({
+                    message: tpl(messages.offerNotFound),
+                    context: 'Offer with id "' + offerId + '" not found'
+                });
+            }
+
             tier = await this._tiersService.api.read(offer.tier.id);
             cadence = offer.cadence;
-        } else {
+        } else if (tierId) {
             offer = null;
-            tier = await this._tiersService.api.read(tierId);
+
+            try {
+                // If the tierId is not a valid ID, the following line will throw
+                tier = await this._tiersService.api.read(tierId);
+
+                if (!tier) {
+                    throw undefined;
+                }
+            } catch (err) {
+                throw new BadRequestError({
+                    message: tpl(messages.tierNotFound),
+                    context: 'Tier with id "' + tierId + '" not found'
+                });
+            }
         }
 
         if (tier.status === 'archived') {

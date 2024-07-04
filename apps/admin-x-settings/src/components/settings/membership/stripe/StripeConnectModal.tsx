@@ -136,7 +136,7 @@ const Connect: React.FC = () => {
             </div>
             <StripeButton href={stripeConnectUrl} tag='a' target='_blank' />
             <Heading className='mb-2 mt-8' level={6} grey>Step 2 — <span className='text-black dark:text-white'>Paste secure key</span></Heading>
-            <TextArea clearBg={false} error={Boolean(error)} hint={error || undefined} placeholder='Paste your secure key here' onChange={onTokenChange}></TextArea>
+            <TextArea error={Boolean(error)} hint={error || undefined} placeholder='Paste your secure key here' onChange={onTokenChange}></TextArea>
             {submitEnabled && <Button className='mt-5' color='green' label='Save Stripe settings' onClick={onSubmit} />}
         </div>
     );
@@ -225,8 +225,9 @@ const Direct: React.FC<{onClose: () => void}> = ({onClose}) => {
         } catch (e) {
             if (e instanceof JSONError) {
                 showToast({
-                    type: 'pageError',
-                    message: 'Failed to save settings. Please check you copied both keys correctly.'
+                    title: 'Failed to save settings',
+                    type: 'error',
+                    message: 'Check you copied both keys correctly'
                 });
                 return;
             }
