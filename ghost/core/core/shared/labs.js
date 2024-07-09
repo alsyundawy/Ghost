@@ -22,9 +22,7 @@ const GA_FEATURES = [
     'signupForm',
     'recommendations',
     'listUnsubscribeHeader',
-    'filterEmailDisabled',
     'newEmailAddresses',
-    'portalImprovements',
     'internalLinking'
 ];
 
@@ -44,7 +42,6 @@ const ALPHA_FEATURES = [
     'NestPlayground',
     'urlCache',
     'lexicalMultiplayer',
-    'websockets',
     'emailCustomization',
     'mailEvents',
     'collectionsCard',
