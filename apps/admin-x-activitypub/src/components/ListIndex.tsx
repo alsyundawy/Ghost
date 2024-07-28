@@ -1,10 +1,11 @@
-// import NiceModal from '@ebay/nice-modal-react';
 import ActivityPubWelcomeImage from '../assets/images/ap-welcome.png';
 import React, {useEffect, useRef, useState} from 'react';
 import articleBodyStyles from './articleBodyStyles';
-import {ActorProperties, ObjectProperties, useBrowseFollowersForUser, useBrowseFollowingForUser, useBrowseInboxForUser} from '@tryghost/admin-x-framework/api/activitypub';
+import {ActivityPubAPI} from '../api/activitypub';
+import {ActorProperties, ObjectProperties} from '@tryghost/admin-x-framework/api/activitypub';
 import {Avatar, Button, ButtonGroup, Heading, List, ListItem, Page, SelectOption, SettingValue, ViewContainer, ViewTab} from '@tryghost/admin-x-design-system';
 import {useBrowseSite} from '@tryghost/admin-x-framework/api/site';
+import {useQuery} from '@tanstack/react-query';
 import {useRouting} from '@tryghost/admin-x-framework/routing';
 
 interface ViewArticleProps {
@@ -12,13 +13,64 @@ interface ViewArticleProps {
     onBackToList: () => void;
 }
 
+function useBrowseInboxForUser(handle: string) {
+    const site = useBrowseSite();
+    const siteData = site.data?.site;
+    const siteUrl = siteData?.url ?? window.location.origin;
+    const api = new ActivityPubAPI(
+        new URL(siteUrl),
+        new URL('/ghost/api/admin/identities/', window.location.origin),
+        handle
+    );
+    return useQuery({
+        queryKey: [`inbox:${handle}`],
+        async queryFn() {
+            return api.getInbox();
+        }
+    });
+}
+
+function useFollowersCountForUser(handle: string) {
+    const site = useBrowseSite();
+    const siteData = site.data?.site;
+    const siteUrl = siteData?.url ?? window.location.origin;
+    const api = new ActivityPubAPI(
+        new URL(siteUrl),
+        new URL('/ghost/api/admin/identities/', window.location.origin),
+        handle
+    );
+    return useQuery({
+        queryKey: [`followersCount:${handle}`],
+        async queryFn() {
+            return api.getFollowersCount();
+        }
+    });
+}
+
+function useFollowingCountForUser(handle: string) {
+    const site = useBrowseSite();
+    const siteData = site.data?.site;
+    const siteUrl = siteData?.url ?? window.location.origin;
+    const api = new ActivityPubAPI(
+        new URL(siteUrl),
+        new URL('/ghost/api/admin/identities/', window.location.origin),
+        handle
+    );
+    return useQuery({
+        queryKey: [`followingCount:${handle}`],
+        async queryFn() {
+            return api.getFollowingCount();
+        }
+    });
+}
+
 const ActivityPubComponent: React.FC = () => {
     const {updateRoute} = useRouting();
 
     // TODO: Replace with actual user ID
-    const {data: {items: activities = []} = {}} = useBrowseInboxForUser('index');
-    const {data: {totalItems: followingCount = 0} = {}} = useBrowseFollowingForUser('index');
-    const {data: {totalItems: followersCount = 0} = {}} = useBrowseFollowersForUser('index');
+    const {data: activities = []} = useBrowseInboxForUser('index');
+    const {data: followersCount = 0} = useFollowersCountForUser('index');
+    const {data: followingCount = 0} = useFollowingCountForUser('index');
 
     const [articleContent, setArticleContent] = useState<ObjectProperties | null>(null);
     const [, setArticleActor] = useState<ActorProperties | null>(null);
@@ -40,7 +92,7 @@ const ActivityPubComponent: React.FC = () => {
         {
             id: 'inbox',
             title: 'Inbox',
-            contents: <div className='grid grid-cols-6 items-start gap-8'>
+            contents: <div className='grid grid-cols-6 items-start gap-8 pt-8'>
                 <ul className={`order-2 col-span-6 flex flex-col pb-8 lg:order-1 ${selectedOption.value === 'inbox' ? 'lg:col-span-4' : 'lg:col-span-3'}`}>
                     {activities && activities.some(activity => activity.type === 'Create' && activity.object.type === 'Article') ? (activities.slice().reverse().map(activity => (
                         activity.type === 'Create' && activity.object.type === 'Article' &&
@@ -63,9 +115,9 @@ const ActivityPubComponent: React.FC = () => {
         {
             id: 'activity',
             title: 'Activity',
-            contents: <div className='grid grid-cols-6 items-start gap-8'><List className='col-span-4'>
+            contents: <div className='grid grid-cols-6 items-start gap-8 pt-8'><List className='col-span-4'>
                 {activities && activities.slice().reverse().map(activity => (
-                    activity.type === 'Like' && <ListItem avatar={<Avatar image={activity.actor.icon} size='sm' />} id='list-item' title={<div><span className='font-medium'>{activity.actor.name}</span><span className='text-grey-800'> liked your post </span><span className='font-medium'>{activity.object.name}</span></div>}></ListItem>
+                    activity.type === 'Like' && <ListItem avatar={<Avatar image={activity.actor.icon?.url} size='sm' />} id='list-item' title={<div><span className='font-medium'>{activity.actor.name}</span><span className='text-grey-800'> liked your post </span><span className='font-medium'>{activity.object.name}</span></div>}></ListItem>
                 ))}
             </List>
             <Sidebar followersCount={followersCount} followingCount={followingCount} updateRoute={updateRoute} />
@@ -74,7 +126,7 @@ const ActivityPubComponent: React.FC = () => {
         {
             id: 'likes',
             title: 'Likes',
-            contents: <div className='grid grid-cols-6 items-start gap-8'>
+            contents: <div className='grid grid-cols-6 items-start gap-8 pt-8'>
                 <ul className='order-2 col-span-6 flex flex-col lg:order-1 lg:col-span-4'>
                     {activities && activities.slice().reverse().map(activity => (
                         activity.type === 'Create' && activity.object.type === 'Article' &&
@@ -110,7 +162,7 @@ const ActivityPubComponent: React.FC = () => {
                                 setSelectedOption({label: 'Feed', value: 'feed'});
                             }
                         }
-                    ]} clearBg={false} link outlineOnMobile />]}
+                    ]} clearBg={true} link outlineOnMobile />]}
                     firstOnPage={true}
                     primaryAction={{
                         title: 'Follow',
@@ -242,7 +294,7 @@ const ObjectContentDisplay: React.FC<{actor: ActorProperties, object: ObjectProp
                     <div className='border-1 group/article relative z-10 flex cursor-pointer flex-col items-start justify-between border-b border-b-grey-200 py-6' data-test-activity>
                         
                         <div className='relative z-10 mb-3 flex w-full items-center gap-3'>
-                            <img className='w-8' src={actor.icon.url}/>
+                            <img className='w-8' src={actor.icon?.url}/>
                             <div>
                                 <p className='text-base font-bold' data-test-activity-heading>{actor.name}</p>
                                 <div className='*:text-base *:text-grey-900'>
