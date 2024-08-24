@@ -13,6 +13,8 @@ function isString(str) {
 
 export default class PublishFlowOptions extends Component {
     @service settings;
+    @service feature;
+    @service router;
 
     @tracked errorMessage;
 
@@ -91,6 +93,19 @@ export default class PublishFlowOptions extends Component {
 
         try {
             yield this.args.saveTask.perform();
+            if (this.feature.publishFlowEndScreen) {
+                if (this.args.publishOptions.isScheduled) {
+                    localStorage.setItem('ghost-last-scheduled-post', this.args.publishOptions.post.id);
+                    this.router.transitionTo('posts');
+                } else {
+                    localStorage.setItem('ghost-last-published-post', this.args.publishOptions.post.id);
+                    if (this.args.publishOptions.post.emailOnly) {
+                        this.router.transitionTo('posts.analytics', this.args.publishOptions.post.id);
+                    } else {
+                        this.router.transitionTo('posts');
+                    }
+                }
+            }
         } catch (e) {
             if (e === undefined && this.args.publishOptions.post.errors.length !== 0) {
                 // validation error
