@@ -70,14 +70,14 @@
                         {{#unless this.session.user.isContributor}}
                         <div class="form-group">
                             <label for="tag-input">Tags</label>
-                            <GhPsmTagsInput @post={{this.post}} @triggerId="tag-input" />
+                            <GhPsmTagsInput @post={{this.post}} @savePostOnChange={{action "savePost"}} @triggerId="tag-input" />
                         </div>
                         {{/unless}}
 
                         {{#if this.showVisibilityInput}}
                             <GhFormGroup @errors={{this.post.errors}} @hasValidated={{this.post.hasValidated}} @property="visibility">
                                 <label for="visibility-input">{{capitalize @post.displayName}} access</label>
-                                <GhPsmVisibilityInput @post={{this.post}} @triggerId="visibility-input" />
+                                <GhPsmVisibilityInput @post={{this.post}} @savePostOnChange={{action "savePost"}} @triggerId="visibility-input" />
                             </GhFormGroup>
 
                             {{#if (eq this.post.visibility "tiers")}}
@@ -126,7 +126,7 @@
                     <ul class="nav-list">
                         {{#if (and this.post.isPage this.post.lexical)}}
                             <li class="nav-list-item">
-                                <div class="for-switch x-small">
+                                <div class="for-switch xs">
                                     <label class="switch">
                                         <span>
                                             <Icons::EyeOpenClose class="feature" @closed={{not this.post.showTitleAndFeatureImage}} />
@@ -154,7 +154,7 @@
                         {{/if}}
                         {{#unless this.session.user.isAuthorOrContributor}}
                             <li class="nav-list-item">
-                                <div class="for-switch x-small">
+                                <div class="for-switch xs">
                                     <label class="switch" for="featured" {{action "toggleFeatured" bubbles="false"}}>
                                         <span>
                                             {{#if this.post.featured}}

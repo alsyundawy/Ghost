@@ -55,6 +55,14 @@ const features = [{
     title: 'Content Visibility',
     description: 'Enables content visibility in Emails',
     flag: 'contentVisibility'
+}, {
+    title: 'Comment Improvements',
+    description: 'Enables new comment features',
+    flag: 'commentImprovements'
+}, {
+    title: 'Staff 2FA',
+    description: 'Enables email verification for staff logins',
+    flag: 'staff2fa'
 }];
 
 const AlphaFeatures: React.FC = () => {

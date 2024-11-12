@@ -11,10 +11,11 @@ Object {
         <title>A random test post</title>
         <style>
 .post-title-link {
-  color: #15212A;
   display: block;
-  text-align: center;
   margin-top: 32px;
+  color: #15212A;
+  text-align: center;
+  line-height: 1.1em;
 }
 .post-title-link-left {
   text-align: left;
@@ -204,16 +205,19 @@ table.body .footer a {
   }
 
   table.feedback-buttons {
-    display: none !important;
-  }
-
-  table.feedback-buttons-mobile {
     display: table !important;
     width: 100% !important;
     max-width: 390px;
   }
 
-  table.body .feedback-button-mobile-text {
+  table.feedback-buttons img {
+    display: inherit !important;
+  }
+
+  table.body .feedback-button-text {
+    display: block !important;
+    padding-top: 4px !important;
+    padding-left: 0px !important;
     font-size: 13px !important;
   }
 
@@ -461,7 +465,7 @@ table.body h2 span {
 
                                             <tr>
                                                 <td class=\\"post-title post-title-no-excerpt post-title-serif\\" style=\\"vertical-align: top; color: #15212A; font-size: 36px; line-height: 1.1em; font-weight: 700; text-align: center; padding-bottom: 16px; font-family: Georgia, serif; letter-spacing: -0.01em;\\" valign=\\"top\\" align=\\"center\\">
-                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; color: #15212A; display: block; text-align: center; margin-top: 32px; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
+                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; display: block; margin-top: 32px; color: #15212A; text-align: center; line-height: 1.1em; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
                                                 </td>
                                             </tr>
                                             <tr>
@@ -668,10 +672,11 @@ Object {
         <title>A random test post</title>
         <style>
 .post-title-link {
-  color: #15212A;
   display: block;
-  text-align: center;
   margin-top: 32px;
+  color: #15212A;
+  text-align: center;
+  line-height: 1.1em;
 }
 .post-title-link-left {
   text-align: left;
@@ -861,16 +866,19 @@ table.body .footer a {
   }
 
   table.feedback-buttons {
-    display: none !important;
-  }
-
-  table.feedback-buttons-mobile {
     display: table !important;
     width: 100% !important;
     max-width: 390px;
   }
 
-  table.body .feedback-button-mobile-text {
+  table.feedback-buttons img {
+    display: inherit !important;
+  }
+
+  table.body .feedback-button-text {
+    display: block !important;
+    padding-top: 4px !important;
+    padding-left: 0px !important;
     font-size: 13px !important;
   }
 
@@ -1118,7 +1126,7 @@ table.body h2 span {
 
                                             <tr>
                                                 <td class=\\"post-title post-title-no-excerpt post-title-serif\\" style=\\"vertical-align: top; color: #15212A; font-size: 36px; line-height: 1.1em; font-weight: 700; text-align: center; padding-bottom: 16px; font-family: Georgia, serif; letter-spacing: -0.01em;\\" valign=\\"top\\" align=\\"center\\">
-                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; color: #15212A; display: block; text-align: center; margin-top: 32px; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
+                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; display: block; margin-top: 32px; color: #15212A; text-align: center; line-height: 1.1em; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
                                                 </td>
                                             </tr>
                                             <tr>
@@ -1325,10 +1333,11 @@ Object {
         <title>A random test post</title>
         <style>
 .post-title-link {
-  color: #15212A;
   display: block;
-  text-align: center;
   margin-top: 32px;
+  color: #15212A;
+  text-align: center;
+  line-height: 1.1em;
 }
 .post-title-link-left {
   text-align: left;
@@ -1518,16 +1527,19 @@ table.body .footer a {
   }
 
   table.feedback-buttons {
-    display: none !important;
-  }
-
-  table.feedback-buttons-mobile {
     display: table !important;
     width: 100% !important;
     max-width: 390px;
   }
 
-  table.body .feedback-button-mobile-text {
+  table.feedback-buttons img {
+    display: inherit !important;
+  }
+
+  table.body .feedback-button-text {
+    display: block !important;
+    padding-top: 4px !important;
+    padding-left: 0px !important;
     font-size: 13px !important;
   }
 
@@ -1803,7 +1815,7 @@ Ghost: Independent technology for modern publishingBeautiful, modern publishing 
 
                                             <tr>
                                                 <td class=\\"post-title post-title-no-excerpt post-title-serif\\" style=\\"vertical-align: top; color: #15212A; font-size: 36px; line-height: 1.1em; font-weight: 700; text-align: center; padding-bottom: 16px; font-family: Georgia, serif; letter-spacing: -0.01em;\\" valign=\\"top\\" align=\\"center\\">
-                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; color: #15212A; display: block; text-align: center; margin-top: 32px; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
+                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; display: block; margin-top: 32px; color: #15212A; text-align: center; line-height: 1.1em; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
                                                 </td>
                                             </tr>
                                             <tr>
@@ -2517,10 +2529,11 @@ Object {
         <title>A random test post</title>
         <style>
 .post-title-link {
-  color: #15212A;
   display: block;
-  text-align: center;
   margin-top: 32px;
+  color: #15212A;
+  text-align: center;
+  line-height: 1.1em;
 }
 .post-title-link-left {
   text-align: left;
@@ -2710,16 +2723,19 @@ table.body .footer a {
   }
 
   table.feedback-buttons {
-    display: none !important;
-  }
-
-  table.feedback-buttons-mobile {
     display: table !important;
     width: 100% !important;
     max-width: 390px;
   }
 
-  table.body .feedback-button-mobile-text {
+  table.feedback-buttons img {
+    display: inherit !important;
+  }
+
+  table.body .feedback-button-text {
+    display: block !important;
+    padding-top: 4px !important;
+    padding-left: 0px !important;
     font-size: 13px !important;
   }
 
@@ -2995,7 +3011,7 @@ Ghost: Independent technology for modern publishingBeautiful, modern publishing 
 
                                             <tr>
                                                 <td class=\\"post-title post-title-no-excerpt post-title-serif\\" style=\\"vertical-align: top; color: #15212A; font-size: 36px; line-height: 1.1em; font-weight: 700; text-align: center; padding-bottom: 16px; font-family: Georgia, serif; letter-spacing: -0.01em;\\" valign=\\"top\\" align=\\"center\\">
-                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; color: #15212A; display: block; text-align: center; margin-top: 32px; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
+                                                    <a href=\\"http://127.0.0.1:2369/r/xxxxxx?m=member-uuid\\" class=\\"post-title-link\\" style=\\"text-decoration: none; display: block; margin-top: 32px; color: #15212A; text-align: center; line-height: 1.1em; overflow-wrap: anywhere;\\" target=\\"_blank\\">A random test post</a>
                                                 </td>
                                             </tr>
                                             <tr>

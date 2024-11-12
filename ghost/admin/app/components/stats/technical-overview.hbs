@@ -1,4 +1,4 @@
-<div>
+<div class="gh-stats-technical-container">
     <div class="gh-stats-tabs-header">
         <div class="gh-stats-tabs">
             <button type="button" class="gh-stats-tab {{if this.devicesTabSelected 'is-selected'}}" {{on "click" this.changeTabToDevices}}>
@@ -18,5 +18,14 @@
         </div>
     </div>
 
-    <Stats::Charts::Technical @chartRange={{@chartRange}} @audience={{@audience}} @selected={{this.selected}} />
+    <Stats::Charts::Technical
+        @chartRange={{@chartRange}}
+        @audience={{@audience}}
+        @device={{@device}}
+        @browser={{@browser}}
+        @location={{@location}}
+        @source={{@source}}
+        @pathname={{@pathname}}
+        @selected={{this.selected}}
+    />
 </div>

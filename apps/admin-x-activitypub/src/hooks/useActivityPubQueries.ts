@@ -1,11 +1,18 @@
-import {ActivityPubAPI} from '../api/activitypub';
-import {useBrowseSite} from '@tryghost/admin-x-framework/api/site';
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {Activity} from '../components/activities/ActivityItem';
+import {ActivityPubAPI, ActivityThread, type Profile, type SearchResults} from '../api/activitypub';
+import {useInfiniteQuery, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
-const useSiteUrl = () => {
-    const site = useBrowseSite();
-    return site.data?.site?.url ?? window.location.origin;
-};
+let SITE_URL: string;
+
+async function getSiteUrl() {
+    if (!SITE_URL) {
+        const response = await fetch('/ghost/api/admin/site');
+        const json = await response.json();
+        SITE_URL = json.site.url;
+    }
+
+    return SITE_URL;
+}
 
 function createActivityPubAPI(handle: string, siteUrl: string) {
     return new ActivityPubAPI(
@@ -16,22 +23,32 @@ function createActivityPubAPI(handle: string, siteUrl: string) {
 }
 
 export function useLikedForUser(handle: string) {
-    const siteUrl = useSiteUrl();
-    const api = createActivityPubAPI(handle, siteUrl);
     return useQuery({
         queryKey: [`liked:${handle}`],
         async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
             return api.getLiked();
+        }
+    });
+}
+
+export function useReplyMutationForUser(handle: string) {
+    return useMutation({
+        async mutationFn({id, content}: {id: string, content: string}) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return await api.reply(id, content) as Activity;
         }
     });
 }
 
 export function useLikeMutationForUser(handle: string) {
     const queryClient = useQueryClient();
-    const siteUrl = useSiteUrl();
-    const api = createActivityPubAPI(handle, siteUrl);
     return useMutation({
-        mutationFn(id: string) {
+        async mutationFn(id: string) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
             return api.like(id);
         },
         onMutate: (id) => {
@@ -71,10 +88,10 @@ export function useLikeMutationForUser(handle: string) {
 
 export function useUnlikeMutationForUser(handle: string) {
     const queryClient = useQueryClient();
-    const siteUrl = useSiteUrl();
-    const api = createActivityPubAPI(handle, siteUrl);
     return useMutation({
-        mutationFn: (id: string) => {
+        async mutationFn(id: string) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
             return api.unlike(id);
         },
         onMutate: async (id) => {
@@ -121,47 +138,301 @@ export function useUnlikeMutationForUser(handle: string) {
     });
 }
 
+export function useUserDataForUser(handle: string) {
+    return useQuery({
+        queryKey: [`user:${handle}`],
+        async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getUser();
+        }
+    });
+}
+
 export function useFollowersCountForUser(handle: string) {
-    const siteUrl = useSiteUrl();
-    const api = createActivityPubAPI(handle, siteUrl);
     return useQuery({
         queryKey: [`followersCount:${handle}`],
         async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
             return api.getFollowersCount();
         }
     });
 }
 
 export function useFollowingCountForUser(handle: string) {
-    const siteUrl = useSiteUrl();
-    const api = createActivityPubAPI(handle, siteUrl);
     return useQuery({
         queryKey: [`followingCount:${handle}`],
         async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
             return api.getFollowingCount();
         }
     });
 }
 
 export function useFollowingForUser(handle: string) {
-    const siteUrl = useSiteUrl();
-    const api = createActivityPubAPI(handle, siteUrl);
     return useQuery({
         queryKey: [`following:${handle}`],
         async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
             return api.getFollowing();
         }
     });
 }
 
 export function useFollowersForUser(handle: string) {
-    const siteUrl = useSiteUrl();
-    const api = createActivityPubAPI(handle, siteUrl);
-
     return useQuery({
         queryKey: [`followers:${handle}`],
         async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
             return api.getFollowers();
         }
     });
+}
+
+export function useActivitiesForUser({
+    handle,
+    includeOwn = false,
+    includeReplies = false,
+    excludeNonFollowers = false,
+    filter = null
+}: {
+    handle: string;
+    includeOwn?: boolean;
+    includeReplies?: boolean;
+    excludeNonFollowers?: boolean;
+    filter?: {type?: string[]} | null;
+}) {
+    const queryKey = [`activities:${JSON.stringify({handle, includeOwn, includeReplies, filter})}`];
+    const queryClient = useQueryClient();
+
+    const getActivitiesQuery = useInfiniteQuery({
+        queryKey,
+        async queryFn({pageParam}: {pageParam?: string}) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getActivities(includeOwn, includeReplies, excludeNonFollowers, filter, pageParam);
+        },
+        getNextPageParam(prevPage) {
+            return prevPage.next;
+        }
+    });
+
+    const updateActivity = (id: string, updated: Partial<Activity>) => {
+        queryClient.setQueryData(queryKey, (current: {pages: {data: Activity[]}[]} | undefined) => {
+            if (!current) {
+                return current;
+            }
+
+            return {
+                ...current,
+                pages: current.pages.map((page: {data: Activity[]}) => {
+                    return {
+                        ...page,
+                        data: page.data.map((item: Activity) => {
+                            if (item.id === id) {
+                                return {...item, ...updated};
+                            }
+                            return item;
+                        })
+                    };
+                })
+            };
+        });
+    };
+
+    return {getActivitiesQuery, updateActivity};
+}
+
+export function useSearchForUser(handle: string, query: string) {
+    const queryClient = useQueryClient();
+    const queryKey = ['search', {handle, query}];
+
+    const searchQuery = useQuery({
+        queryKey,
+        async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.search(query);
+        }
+    });
+
+    const updateProfileSearchResult = (id: string, updated: Partial<Profile>) => {
+        queryClient.setQueryData(queryKey, (current: SearchResults | undefined) => {
+            if (!current) {
+                return current;
+            }
+
+            return {
+                ...current,
+                profiles: current.profiles.map((item: Profile) => {
+                    if (item.actor.id === id) {
+                        return {...item, ...updated};
+                    }
+                    return item;
+                })
+            };
+        });
+    };
+
+    return {searchQuery, updateProfileSearchResult};
+}
+
+export function useFollow(handle: string, onSuccess: () => void, onError: () => void) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        async mutationFn(username: string) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.follow(username);
+        },
+        onSuccess(followedActor, fullHandle) {
+            queryClient.setQueryData([`profile:${fullHandle}`], (currentProfile: unknown) => {
+                if (!currentProfile) {
+                    return currentProfile;
+                }
+                return {
+                    ...currentProfile,
+                    isFollowing: true
+                };
+            });
+
+            queryClient.setQueryData(['following:index'], (currentFollowing?: unknown[]) => {
+                if (!currentFollowing) {
+                    return currentFollowing;
+                }
+                return [followedActor].concat(currentFollowing);
+            });
+
+            queryClient.setQueryData(['followingCount:index'], (currentFollowingCount?: number) => {
+                if (!currentFollowingCount) {
+                    return 1;
+                }
+                return currentFollowingCount + 1;
+            });
+
+            onSuccess();
+        },
+        onError
+    });
+}
+
+export function useFollowersForProfile(handle: string) {
+    return useInfiniteQuery({
+        queryKey: [`followers:${handle}`],
+        async queryFn({pageParam}: {pageParam?: string}) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getFollowersForProfile(handle, pageParam);
+        },
+        getNextPageParam(prevPage) {
+            return prevPage.next;
+        }
+    });
+}
+
+export function useFollowingForProfile(handle: string) {
+    return useInfiniteQuery({
+        queryKey: [`following:${handle}`],
+        async queryFn({pageParam}: {pageParam?: string}) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getFollowingForProfile(handle, pageParam);
+        },
+        getNextPageParam(prevPage) {
+            return prevPage.next;
+        }
+    });
+}
+
+export function useSuggestedProfiles(handle: string, handles: string[]) {
+    const queryClient = useQueryClient();
+    const queryKey = ['profiles', {handles}];
+
+    const suggestedProfilesQuery = useQuery({
+        queryKey,
+        async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+
+            return Promise.allSettled(
+                handles.map(h => api.getProfile(h))
+            ).then((results) => {
+                return results
+                    .filter((result): result is PromiseFulfilledResult<Profile> => result.status === 'fulfilled')
+                    .map(result => result.value);
+            });
+        }
+    });
+
+    const updateSuggestedProfile = (id: string, updated: Partial<Profile>) => {
+        queryClient.setQueryData(queryKey, (current: Profile[] | undefined) => {
+            if (!current) {
+                return current;
+            }
+
+            return current.map((item: Profile) => {
+                if (item.actor.id === id) {
+                    return {...item, ...updated};
+                }
+                return item;
+            });
+        });
+    };
+
+    return {suggestedProfilesQuery, updateSuggestedProfile};
+}
+
+export function useProfileForUser(handle: string, fullHandle: string, enabled: boolean = true) {
+    return useQuery({
+        queryKey: [`profile:${fullHandle}`],
+        enabled,
+        async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getProfile(fullHandle);
+        }
+    });
+}
+
+export function useOutboxForUser(handle: string) {
+    return useQuery({
+        queryKey: [`outbox:${handle}`],
+        async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getOutbox();
+        }
+    });
+}
+
+export function useThreadForUser(handle: string, id: string) {
+    const queryClient = useQueryClient();
+    const queryKey = ['thread', {id}];
+
+    const threadQuery = useQuery({
+        queryKey,
+        async queryFn() {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getThread(id);
+        }
+    });
+
+    const addToThread = (activity: Activity) => {
+        queryClient.setQueryData(queryKey, (current: ActivityThread | undefined) => {
+            if (!current) {
+                return current;
+            }
+
+            return {
+                items: [...current.items, activity]
+            };
+        });
+    };
+
+    return {threadQuery, addToThread};
 }

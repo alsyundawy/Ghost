@@ -312,6 +312,7 @@ test.describe('Publishing', () => {
             const date = DateTime.now();
 
             await createPostDraft(adminPage, {title: 'Testing publish update', body: 'This is the initial published text.'});
+            const editorUrl = await adminPage.url();
             await publishPost(adminPage);
             const frontendPage = await openPublishedPostBookmark(adminPage);
             await closePublishFlow(adminPage);
@@ -323,7 +324,7 @@ test.describe('Publishing', () => {
             await expect(publishedHeader).toContainText(date.toFormat('LLL d, yyyy'));
 
             // add some extra text to the post
-            await adminPage.locator('li[data-test-post-id]').first().click();
+            await adminPage.goto(editorUrl);
             await adminPage.locator('[data-kg="editor"]').first().click();
             await adminPage.waitForTimeout(500);
             await adminPage.keyboard.type(' This is some updated text.');
@@ -362,12 +363,13 @@ test.describe('Publishing', () => {
             await sharedPage.goto('/ghost');
             await createPostDraft(sharedPage, postData);
 
+            const editorUrl = await sharedPage.url();
+
             // Schedule the post to publish asap (by setting it to 00:00, it will get auto corrected to the minimum time possible - 5 seconds in the future)
             await publishPost(sharedPage, {time: '00:00', type: 'publish+send'});
             await closePublishFlow(sharedPage);
             await checkPostStatus(sharedPage, 'Scheduled', 'Scheduled to be published and sent'); // Member count can differ, hence not included here
             await checkPostStatus(sharedPage, 'Scheduled', 'in a few seconds'); // Extra test for suffix on hover
-            const editorUrl = await sharedPage.url();
 
             // Go to the homepage and check if the post is not yet visible there
             await checkPostNotPublished(sharedPage, postData);
@@ -393,11 +395,11 @@ test.describe('Publishing', () => {
             await sharedPage.goto('/ghost');
             await createPostDraft(sharedPage, postData);
 
+            const editorUrl = await sharedPage.url();
             // Schedule the post to publish asap (by setting it to 00:00, it will get auto corrected to the minimum time possible - 5 seconds in the future)
             await publishPost(sharedPage, {time: '00:00'});
             await closePublishFlow(sharedPage);
             await checkPostStatus(sharedPage, 'Scheduled', 'Scheduled to be published in a few seconds');
-            const editorUrl = await sharedPage.url();
 
             // Check not published yet
             await checkPostNotPublished(sharedPage, postData);
@@ -424,12 +426,12 @@ test.describe('Publishing', () => {
 
             await sharedPage.goto('/ghost');
             await createPostDraft(sharedPage, postData);
+            const editorUrl = await sharedPage.url();
 
             // Schedule the post to publish asap (by setting it to 00:00, it will get auto corrected to the minimum time possible - 5 seconds in the future)
             await publishPost(sharedPage, {type: 'send', time: '00:00'});
             await closePublishFlow(sharedPage);
             await checkPostStatus(sharedPage, 'Scheduled', 'Scheduled to be sent in a few seconds');
-            const editorUrl = await sharedPage.url();
 
             // Check not published yet
             await checkPostNotPublished(sharedPage, postData);
@@ -455,6 +457,8 @@ test.describe('Publishing', () => {
             await sharedPage.goto('/ghost');
             await createPostDraft(sharedPage, postData);
 
+            const editorUrl = await sharedPage.url();
+
             // Schedule far in the future
             await publishPost(sharedPage, {date: '2050-01-01', time: '10:09'});
             await closePublishFlow(sharedPage);
@@ -469,7 +473,7 @@ test.describe('Publishing', () => {
             await checkPostNotPublished(testsharedPage, postData);
 
             // Now unschedule this post
-            await sharedPage.locator('li[data-test-post-id]').first().click();
+            await sharedPage.goto(editorUrl);
             await sharedPage.locator('[data-test-button="update-flow"]').first().click();
             await sharedPage.locator('[data-test-button="revert-to-draft"]').click();
 
@@ -564,8 +568,8 @@ test.describe('Updating post access', () => {
 
         // publish
         await publishPost(sharedPage);
-        await closePublishFlow(sharedPage);
         const frontendPage = await openPublishedPostBookmark(sharedPage);
+        await closePublishFlow(sharedPage);
 
         // non-member doesn't have access
         await expect(frontendPage.locator('.gh-post-upgrade-cta-content h2')).toContainText('on the Gold tier only');
