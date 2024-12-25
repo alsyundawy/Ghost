@@ -30,9 +30,9 @@ describe('{{body_class}} helper', function () {
                 root: {
                     context: [],
                     settings: {active_theme: 'casper'}
-                },
-                site: {}
-            }
+                }
+            },
+            site: {}
         };
     });
 
@@ -213,6 +213,15 @@ describe('{{body_class}} helper', function () {
             );
 
             rendered.string.should.equal('post-template tag-foo tag-bar gh-font-heading-space-grotesk gh-font-body-noto-sans');
+        });
+
+        it('does not include custom font classes when custom fonts are not enabled', function () {
+            const rendered = callBodyClassWithContext(
+                ['post'],
+                {relativeUrl: '/my-awesome-post/', post: {tags: [{slug: 'foo'}, {slug: 'bar'}]}}
+            );
+
+            rendered.string.should.equal('post-template tag-foo tag-bar');
         });
 
         it('includes custom font classes for home page when set in options data object', function () {
