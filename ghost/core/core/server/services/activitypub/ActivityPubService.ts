@@ -25,17 +25,32 @@ export class ActivityPubService {
     ) {}
 
     getExpectedWebhooks(secret: string): ExpectedWebhook[] {
-        return [{
-            event: 'post.published',
-            target_url: new URL('.ghost/activitypub/webhooks/post/published', this.siteUrl),
-            api_version: 'v5.100.0',
-            secret
-        }, {
-            event: 'site.changed',
-            target_url: new URL('.ghost/activitypub/webhooks/site/changed', this.siteUrl),
-            api_version: 'v5.100.0',
-            secret
-        }];
+        return [
+            {
+                event: 'post.published',
+                target_url: new URL('.ghost/activitypub/v1/webhooks/post/published', this.siteUrl),
+                api_version: 'v5.100.0',
+                secret
+            },
+            {
+                event: 'post.deleted',
+                target_url: new URL('.ghost/activitypub/v1/webhooks/post/deleted', this.siteUrl),
+                api_version: 'v5.100.0',
+                secret
+            },
+            {
+                event: 'post.unpublished',
+                target_url: new URL('.ghost/activitypub/v1/webhooks/post/unpublished', this.siteUrl),
+                api_version: 'v5.100.0',
+                secret
+            },
+            {
+                event: 'post.published.edited',
+                target_url: new URL('.ghost/activitypub/v1/webhooks/post/updated', this.siteUrl),
+                api_version: 'v5.100.0',
+                secret
+            }
+        ];
     }
 
     async checkWebhookState(expectedWebhooks: ExpectedWebhook[], integration: {id: string}) {
@@ -74,7 +89,7 @@ export class ActivityPubService {
                 .first();
             const token = await this.identityTokenService.getTokenForUser(ownerUser.email, 'Owner');
 
-            const res = await fetch(new URL('.ghost/activitypub/site', this.siteUrl), {
+            const res = await fetch(new URL('.ghost/activitypub/v1/site', this.siteUrl), {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -132,8 +147,7 @@ export class ActivityPubService {
                 name: `ActivityPub ${expectedWebhook.event} Webhook`,
                 secret: secret,
                 integration_id: integration.id,
-                created_at: this.knex.raw('current_timestamp'),
-                created_by: '1'
+                created_at: this.knex.raw('current_timestamp')
             };
         });
 
