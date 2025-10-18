@@ -65,7 +65,7 @@ const Explore: React.FC<{ keywords: string[] }> = ({keywords}) => {
                 onChange={event => toggleSetting('explore_ping', event)}
             />
         }
-        description='Join the Ghost Explore directory and help new readers find your site.'
+        description={`Promote your site across Ghost's website and publishing network`}
         keywords={keywords}
         navid='explore'
         testId='explore'
@@ -79,8 +79,8 @@ const Explore: React.FC<{ keywords: string[] }> = ({keywords}) => {
                     containerClasses='!items-center'
                     direction='rtl'
                     gap='gap-0'
-                    hint={'Make your member count and revenue public to improve your ranking on Explore'}
-                    label='Share growth data'
+                    hint={'Enabling this will use your revenue/member growth data to rank your site more highly on Ghost Explore. Total member count will be displayed publicly, other data will be kept private.'}
+                    label='Share growth data to rank higher?'
                     labelClasses='w-full'
                     testId='explore-growth-toggle'
                     onChange={event => toggleSetting('explore_ping_growth', event)}
@@ -119,10 +119,10 @@ const Explore: React.FC<{ keywords: string[] }> = ({keywords}) => {
                 </div>
                 <div className='-mx-5 -mb-5 flex items-center justify-between gap-4 rounded-b-xl border-t border-[rgba(142,66,255,0.1)] bg-gradient-to-tr from-[rgba(142,66,255,0.07)] to-[rgba(142,66,255,0.02)] p-6 px-7 md:-mx-7 md:-mb-7'>
                     <div className='flex flex-col'>
-                        <span className='font-medium'>Get featured on Ghost Explore!</span>
-                        <span className='text-pretty text-sm text-black/80'>Share your love about Ghost and get ranked higher on Explore.</span>
+                        <span className='font-medium'>Get featured on the Ghost.org homepage</span>
+                        <span className='text-pretty text-sm text-black/80 dark:text-white/80'>Send us a quote we can use to highlight your site</span>
                     </div>
-                    <Button className='border border-purple bg-white text-purple hover:bg-purple/5 hover:text-purple' icon="quote" label="Send a testimonial" onClick={() => {
+                    <Button className='border border-purple bg-white text-purple hover:bg-purple/5 hover:text-purple dark:bg-transparent' icon="send" label="Send testimonial" onClick={() => {
                         updateRoute('explore/testimonial');
                     }} />
                 </div>

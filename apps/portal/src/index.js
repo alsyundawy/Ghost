@@ -8,6 +8,7 @@ const ROOT_DIV_ID = 'ghost-portal-root';
 function addRootDiv() {
     const elem = document.createElement('div');
     elem.id = ROOT_DIV_ID;
+    elem.setAttribute('data-testid', 'portal-root');
     document.body.appendChild(elem);
 }
 
@@ -22,7 +23,13 @@ function getSiteData() {
         const apiKey = scriptTag.dataset.key;
         const apiUrl = scriptTag.dataset.api;
         const locale = scriptTag.dataset.locale; // not providing a fallback here but will do it within the app.
-        return {siteUrl, apiKey, apiUrl, siteI18nEnabled, locale};
+
+        const labs = {};
+        // NOTE: dataset converts always lowercase dash-attrs to camelCase
+        labs.membersSigninOTC = scriptTag.dataset.membersSigninOtc === 'true';
+        labs.membersSigninOTCAlpha = scriptTag.dataset.membersSigninOtcAlpha === 'true';
+
+        return {siteUrl, apiKey, apiUrl, siteI18nEnabled, locale, labs};
     }
     return {};
 }
@@ -42,12 +49,12 @@ function setup() {
 
 function init() {
     // const customSiteUrl = getSiteUrl();
-    const {siteUrl: customSiteUrl, apiKey, apiUrl, siteI18nEnabled, locale} = getSiteData();
+    const {siteUrl: customSiteUrl, apiKey, apiUrl, siteI18nEnabled, locale, labs} = getSiteData();
     const siteUrl = customSiteUrl || window.location.origin;
     setup({siteUrl});
     ReactDOM.render(
         <React.StrictMode>
-            <App siteUrl={siteUrl} customSiteUrl={customSiteUrl} apiKey={apiKey} apiUrl={apiUrl} siteI18nEnabled={siteI18nEnabled} locale={locale}/>
+            <App siteUrl={siteUrl} customSiteUrl={customSiteUrl} apiKey={apiKey} apiUrl={apiUrl} siteI18nEnabled={siteI18nEnabled} locale={locale} labs={labs}/>
         </React.StrictMode>,
         document.getElementById(ROOT_DIV_ID)
     );

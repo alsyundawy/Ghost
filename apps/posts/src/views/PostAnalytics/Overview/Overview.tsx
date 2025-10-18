@@ -18,7 +18,6 @@ const Overview: React.FC = () => {
     const navigate = useNavigate();
     const {statsConfig, isLoading: isConfigLoading, post, isPostLoading, postId} = useGlobalData();
     const {totals, isLoading: isTotalsLoading, currencySymbol} = usePostReferrers(postId);
-    const {startDate, endDate, timezone} = getRangeDates(STATS_RANGES.ALL_TIME.value);
     const {appSettings} = useAppContext();
     const {emailTrackClicks: emailTrackClicksEnabled, emailTrackOpens: emailTrackOpensEnabled} = appSettings?.analytics || {};
 
@@ -33,28 +32,8 @@ const Overview: React.FC = () => {
 
     const {startDate: chartStartDate, endDate: chartEndDate, timezone: chartTimezone} = getRangeDates(chartRange);
 
-    // KPI params for overview data
+    // Params for KPI data (both chart and totals)
     const params = useMemo(() => {
-        const baseParams = {
-            site_uuid: statsConfig?.id || '',
-            date_from: formatQueryDate(startDate),
-            date_to: formatQueryDate(endDate),
-            timezone: timezone,
-            post_uuid: ''
-        };
-
-        if (!isPostLoading && post?.uuid) {
-            return {
-                ...baseParams,
-                post_uuid: post.uuid
-            };
-        }
-
-        return baseParams;
-    }, [isPostLoading, post, statsConfig?.id, startDate, endDate, timezone]);
-
-    // Chart params for chart data
-    const chartParams = useMemo(() => {
         const baseParams = {
             site_uuid: statsConfig?.id || '',
             date_from: formatQueryDate(chartStartDate),
@@ -73,28 +52,22 @@ const Overview: React.FC = () => {
         return baseParams;
     }, [isPostLoading, post, statsConfig?.id, chartStartDate, chartEndDate, chartTimezone]);
 
-    const {data, loading: tbLoading} = useTinybirdQuery({
+    const {data: chartData, loading: chartLoading} = useTinybirdQuery({
         endpoint: 'api_kpis',
         statsConfig: statsConfig || {id: ''},
         params: params
     });
 
-    const {data: chartData, loading: chartLoading} = useTinybirdQuery({
-        endpoint: 'api_kpis',
-        statsConfig: statsConfig || {id: ''},
-        params: chartParams
-    });
-
     // Calculate total visitors as a number for WebOverview component
     const totalVisitors = useMemo(() => {
-        if (!data?.length) {
+        if (!chartData?.length) {
             return 0;
         }
-        return data.reduce((sum, item) => {
+        return chartData.reduce((sum, item) => {
             const visits = Number(item.visits);
             return sum + (isNaN(visits) ? 0 : visits);
         }, 0);
-    }, [data]);
+    }, [chartData]);
 
     // Process chart data for WebOverview
     const currentMetric = KPI_METRICS.visits;
@@ -115,7 +88,7 @@ const Overview: React.FC = () => {
         params: params
     });
 
-    const kpiIsLoading = isConfigLoading || isTotalsLoading || isPostLoading || tbLoading;
+    const kpiIsLoading = isConfigLoading || isTotalsLoading || isPostLoading || chartLoading;
     const chartIsLoading = isPostLoading || isConfigLoading || chartLoading;
 
     // Use the utility function from admin-x-framework
@@ -125,7 +98,7 @@ const Overview: React.FC = () => {
     // Redirect to Growth tab if this is a published-only post with web analytics disabled
     useEffect(() => {
         if (!isPostLoading && post && isPublishedOnly(post as Post) && !appSettings?.analytics.webAnalytics) {
-            navigate(`/analytics/beta/${postId}/growth`);
+            navigate(`/posts/analytics/${postId}/growth`);
         }
     }, [isPostLoading, post, appSettings?.analytics.webAnalytics, navigate, postId]);
 
@@ -158,8 +131,8 @@ const Overview: React.FC = () => {
                             post={post as Post}
                         />
                     )}
-                    <Card className='group col-span-2 overflow-hidden p-0'>
-                        <div className='relative flex items-center justify-between gap-6' data-testid='growth'>
+                    <Card className='group col-span-2 overflow-hidden p-0' data-testid='growth'>
+                        <div className='relative flex items-center justify-between gap-6'>
                             <CardHeader>
                                 <CardTitle className='flex items-center gap-1.5 text-lg'>
                                     <LucideIcon.Sprout size={16} strokeWidth={1.5} />
@@ -167,7 +140,7 @@ const Overview: React.FC = () => {
                                 </CardTitle>
                             </CardHeader>
                             <Button className='absolute right-6 translate-x-10 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100' size='sm' variant='outline' onClick={() => {
-                                navigate(`/analytics/beta/${postId}/growth`);
+                                navigate(`/posts/analytics/${postId}/growth`);
                             }}>View more</Button>
                         </div>
                         <CardContent className='flex flex-col gap-8 px-0 md:grid md:grid-cols-3 md:items-stretch md:gap-0'>

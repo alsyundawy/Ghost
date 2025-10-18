@@ -44,7 +44,7 @@ const LatestPost: React.FC<LatestPostProps> = ({
     const metricClassName = 'group mr-2 flex flex-col gap-1.5 hover:cursor-pointer';
 
     return (
-        <Card className='group/card bg-gradient-to-tr from-muted/40 to-muted/0 to-50%'>
+        <Card className='group/card bg-gradient-to-tr from-muted/40 to-muted/0 to-50%' data-testid='latest-post'>
             <CardHeader>
                 <CardTitle className='flex items-baseline justify-between font-medium leading-snug text-muted-foreground'>
                     Latest post performance
@@ -96,7 +96,7 @@ const LatestPost: React.FC<LatestPostProps> = ({
                             <div className='flex grow flex-col items-start justify-center self-stretch'>
                                 <div className='text-lg font-semibold leading-tighter tracking-tight hover:cursor-pointer hover:opacity-75' onClick={() => {
                                     if (!isLoading && latestPostStats) {
-                                        navigate(`/posts/analytics/beta/${latestPostStats.id}`, {crossApp: true});
+                                        navigate(`/posts/analytics/${latestPostStats.id}`, {crossApp: true});
                                     }
                                 }}>
                                     {latestPostStats.title}
@@ -104,8 +104,7 @@ const LatestPost: React.FC<LatestPostProps> = ({
                                 <div className='mt-0.5 text-sm text-muted-foreground'>
                                     {latestPostStats.authors && latestPostStats.authors.length > 0 && (
                                         <div>
-                                            By {latestPostStats.authors.map(author => author.name).join(', ')} &ndash;
-                                            {formatDisplayDate(latestPostStats.published_at)}
+                                            By {latestPostStats.authors.map(author => author.name).join(', ')} &ndash; {formatDisplayDate(latestPostStats.published_at)}
                                         </div>
                                     )}
                                     <div className='mt-0.5'>
@@ -134,7 +133,7 @@ const LatestPost: React.FC<LatestPostProps> = ({
                                         className={latestPostStats.email_only ? 'w-full' : ''}
                                         variant='outline'
                                         onClick={() => {
-                                            navigate(`/posts/analytics/beta/${latestPostStats.id}`, {crossApp: true});
+                                            navigate(`/posts/analytics/${latestPostStats.id}`, {crossApp: true});
                                         }}
                                     >
                                         <LucideIcon.ChartNoAxesColumn />
@@ -150,8 +149,8 @@ const LatestPost: React.FC<LatestPostProps> = ({
                             <div className='grid grid-cols-2 gap-6 pl-10 lg:border-l xl:h-full'>
                                 {/* Web metrics - only for published posts */}
                                 {metricsToShow.showWebMetrics && appSettings?.analytics.webAnalytics &&
-                                    <div className={metricClassName} onClick={() => {
-                                        navigate(`/posts/analytics/beta/${latestPostStats.id}/web`, {crossApp: true});
+                                    <div className={metricClassName} data-testid='latest-post-visitors' onClick={() => {
+                                        navigate(`/posts/analytics/${latestPostStats.id}/web`, {crossApp: true});
                                     }}>
                                         <div className='flex items-center gap-1.5 font-medium text-muted-foreground transition-all group-hover:text-foreground'>
                                             <LucideIcon.Globe size={16} strokeWidth={1.25} />
@@ -170,10 +169,12 @@ const LatestPost: React.FC<LatestPostProps> = ({
                                     <div className={
                                         cn(
                                             metricClassName,
-                                            (!metricsToShow.showWebMetrics || !appSettings?.analytics.webAnalytics) && 'row-[2/3] col-[1/2]'
+
+                                            // Member metric is moved to the 2nd row in the grid if the post is email only or if web analytics is turned off, otherwise leave as is
+                                            (metricsToShow.showEmailMetrics && (!metricsToShow.showWebMetrics || !appSettings?.analytics.webAnalytics)) && 'row-[2/3] col-[1/2]'
                                         )
-                                    } onClick={() => {
-                                        navigate(`/posts/analytics/beta/${latestPostStats.id}/growth`, {crossApp: true});
+                                    } data-testid='latest-post-members' onClick={() => {
+                                        navigate(`/posts/analytics/${latestPostStats.id}/growth`, {crossApp: true});
                                     }}>
                                         <div className='flex items-center gap-1.5 font-medium text-muted-foreground transition-all group-hover:text-foreground'>
                                             <LucideIcon.UserPlus size={16} strokeWidth={1.25} />
@@ -195,7 +196,7 @@ const LatestPost: React.FC<LatestPostProps> = ({
                                     <>
                                         {emailTrackOpensEnabled && (
                                             <div className={metricClassName} onClick={() => {
-                                                navigate(`/posts/analytics/beta/${latestPostStats.id}/newsletter`, {crossApp: true});
+                                                navigate(`/posts/analytics/${latestPostStats.id}/newsletter`, {crossApp: true});
                                             }}>
                                                 <div className='flex items-center gap-1.5 font-medium text-muted-foreground transition-all group-hover:text-foreground'>
                                                     <LucideIcon.MailOpen size={16} strokeWidth={1.25} />
@@ -211,7 +212,7 @@ const LatestPost: React.FC<LatestPostProps> = ({
                                         )}
                                         {emailTrackClicksEnabled && (
                                             <div className={metricClassName} onClick={() => {
-                                                navigate(`/posts/analytics/beta/${latestPostStats.id}/newsletter`, {crossApp: true});
+                                                navigate(`/posts/analytics/${latestPostStats.id}/newsletter`, {crossApp: true});
                                             }}>
                                                 <div className='flex items-center gap-1.5 font-medium text-muted-foreground transition-all group-hover:text-foreground'>
                                                     <LucideIcon.MousePointerClick size={16} strokeWidth={1.25} />

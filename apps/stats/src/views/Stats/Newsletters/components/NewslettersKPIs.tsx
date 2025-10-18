@@ -22,8 +22,7 @@ const BarTooltipContent = ({active, payload}: BarTooltipProps) => {
     }
 
     const currentItem = payload[0].payload;
-    const sendDate = typeof currentItem.send_date === 'string' ?
-        new Date(currentItem.send_date) : currentItem.send_date;
+    const sendDate = currentItem.send_date;
 
     return (
         <div className="min-w-[220px] max-w-[240px] rounded-lg border bg-background px-3 py-2 shadow-lg">
@@ -92,6 +91,59 @@ const NewsletterKPIs: React.FC<{
 
     const {totalSubscribers, avgOpenRate, avgClickRate} = totals;
 
+    // Sanitize subscribers data (API returns cumulative values, not deltas)
+    const subscribersData = useMemo(() => {
+        if (!allSubscribersData || allSubscribersData.length === 0) {
+            return [];
+        }
+
+        let sanitizedData: SubscribersDataItem[] = [];
+
+        // First sanitize the data based on range
+        // Use 'exact' aggregation type since we have cumulative values
+        sanitizedData = sanitizeChartData(allSubscribersData, range, 'value', 'exact');
+
+        const processedData = sanitizedData.map(item => ({
+            ...item,
+            formattedValue: formatNumber(item.value),
+            label: 'Total Subscribers'
+        }));
+
+        return processedData;
+    }, [allSubscribersData, range]);
+
+    const subscribersDiff = useMemo(() => {
+        if (!subscribersData || subscribersData.length <= 1) {
+            return {
+                direction: 'same' as const,
+                value: '0%'
+            };
+        }
+
+        const prev = subscribersData[subscribersData.length - 2]?.value ?? 0;
+        const curr = subscribersData[subscribersData.length - 1]?.value ?? 0;
+
+        // Calculate direction
+        let direction: 'up' | 'down' | 'same' = 'same';
+        if (curr > prev) {
+            direction = 'up';
+        } else if (curr < prev) {
+            direction = 'down';
+        }
+
+        // Calculate percentage difference
+        let value: string;
+        if (prev === 0) {
+            value = curr === 0 ? '0%' : '+100%';
+        } else {
+            const diff = ((curr - prev) / prev) * 100;
+            const rounded = Math.round(diff * 10) / 10;
+            value = `${diff >= 0 ? '+' : ''}${rounded}%`;
+        }
+
+        return {direction, value};
+    }, [subscribersData]);
+
     // Update current tab if initialTab changes
     useEffect(() => {
         setCurrentTab(initialTab);
@@ -105,44 +157,13 @@ const NewsletterKPIs: React.FC<{
         navigate(`?${newSearchParams.toString()}`, {replace: true});
     };
 
-    // Sanitize subscribers data and convert deltas to cumulative values
-    const subscribersData = useMemo(() => {
-        if (!allSubscribersData || allSubscribersData.length === 0) {
-            return [];
-        }
-
-        let sanitizedData: SubscribersDataItem[] = [];
-
-        // First sanitize the data based on range
-        sanitizedData = sanitizeChartData(allSubscribersData, range, 'value', 'exact');
-
-        // Convert from deltas to running count (backwards from total)
-        let runningTotal = totalSubscribers;
-        const cumulativeData = [...sanitizedData].reverse().map((item) => {
-            runningTotal -= item.value;
-            return {
-                ...item,
-                value: runningTotal + item.value // Current day's value is before the day's change
-            };
-        }).reverse();
-
-        // Map the data for display
-        const processedData = cumulativeData.map(item => ({
-            ...item,
-            formattedValue: formatNumber(item.value),
-            label: 'Total Subscribers'
-        }));
-
-        return processedData;
-    }, [allSubscribersData, range, totalSubscribers]);
-
     const barChartConfig = {
         open_rate: {
             label: 'Open rate'
         }
     } satisfies ChartConfig;
 
-    const tabConfig = {
+    const tabConfig = useMemo(() => ({
         'total-subscribers': {
             color: 'hsl(var(--chart-darkblue))',
             datakey: 'value'
@@ -155,7 +176,7 @@ const NewsletterKPIs: React.FC<{
             color: 'hsl(var(--chart-teal))',
             datakey: 'click_rate'
         }
-    };
+    }), []);
 
     // Calculate dynamic domain and ticks based on current tab's data
     const {barDomain, barTicks} = useMemo(() => {
@@ -190,7 +211,7 @@ const NewsletterKPIs: React.FC<{
             barDomain: [finalMin, finalMax],
             barTicks: [finalMin, finalMax]
         };
-    }, [avgsData, currentTab]);
+    }, [avgsData, currentTab, tabConfig]);
 
     if (isLoading) {
         return (
@@ -219,6 +240,8 @@ const NewsletterKPIs: React.FC<{
                 }}>
                     <KpiTabValue
                         color={tabConfig['total-subscribers'].color}
+                        diffDirection={subscribersDiff.direction}
+                        diffValue={subscribersDiff.value}
                         label="Total subscribers"
                         value={formatNumber(totalSubscribers)}
                     />
@@ -319,7 +342,7 @@ const NewsletterKPIs: React.FC<{
                                             }}
                                             onClick={(e) => {
                                                 if (e.activePayload && e.activePayload![0].payload.post_id) {
-                                                    navigate(`/posts/analytics/beta/${e.activePayload![0].payload.post_id}`, {crossApp: true});
+                                                    navigate(`/posts/analytics/${e.activePayload![0].payload.post_id}`, {crossApp: true});
                                                 }
                                             }}
                                             onMouseLeave={() => setIsHoveringClickable(false)}

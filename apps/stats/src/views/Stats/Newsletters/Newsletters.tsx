@@ -73,7 +73,7 @@ const NewsletterTableRows: React.FC<{
                                 <div className='group/link inline-flex items-center gap-2'>
                                     {post.post_id ?
                                         <Button className='h-auto whitespace-normal p-0 text-left hover:!underline' title="View post analytics" variant='link' onClick={() => {
-                                            navigate(`/posts/analytics/beta/${post.post_id}/`, {crossApp: true});
+                                            navigate(`/posts/analytics/${post.post_id}/`, {crossApp: true});
                                         }}>
                                             {post.post_title}
                                         </Button>
@@ -85,7 +85,7 @@ const NewsletterTableRows: React.FC<{
                                 </div>
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-sm">
-                                {formatDisplayDate(new Date(post.send_date))}
+                                {formatDisplayDate(post.send_date)}
                             </TableCell>
                             <TableCell className='text-right font-mono text-sm'>
                                 {formatNumber(post.sent_to)}
@@ -198,7 +198,7 @@ const TopNewslettersTable: React.FC<{
     const [sortBy, setSortBy] = useState<TopNewslettersOrder>('open_rate desc');
 
     return (
-        <Card className='w-full max-w-[calc(100vw-64px)] overflow-x-auto sidebar:max-w-[calc(100vw-64px-280px)]'>
+        <Card className='w-full max-w-[calc(100vw-64px)] overflow-x-auto sidebar:max-w-[calc(100vw-64px-280px)]' data-testid='top-newsletters-card'>
             <CardContent>
                 <Table>
                     <NewsletterTableHeader range={range} setSortBy={setSortBy} sortBy={sortBy} />
@@ -250,7 +250,7 @@ const Newsletters: React.FC = () => {
     // and to calculate averages - using the same data source as the table for consistency
     const {data: newsletterStatsData, isLoading: isNewsletterStatsLoading, isClicksLoading} = useNewsletterStatsWithRangeSplit(
         range,
-        'date desc',
+        'date asc',
         selectedNewsletterId || undefined,
         shouldFetchStats || false
     );
@@ -292,7 +292,7 @@ const Newsletters: React.FC = () => {
 
     // Create subscribers data from newsletter subscriber stats
     const subscribersData = useMemo(() => {
-        if (!subscriberStatsData?.stats?.[0]?.deltas || subscriberStatsData.stats[0].deltas.length === 0) {
+        if (!subscriberStatsData?.stats?.[0]?.values || subscriberStatsData.stats[0].values.length === 0) {
             // When there's no data, create zero points for each day spanning the range
             const {startDate, endDate} = getRangeDates(range);
 
@@ -310,11 +310,11 @@ const Newsletters: React.FC = () => {
             return dailyData;
         }
 
-        const deltas = subscriberStatsData.stats[0].deltas;
+        const values = subscriberStatsData.stats[0].values;
 
         // If we only have one data point, create two points spanning the range
-        if (deltas.length === 1) {
-            const singlePoint = deltas[0];
+        if (values.length === 1) {
+            const singlePoint = values[0];
             const now = new Date();
             const rangeInDays = range;
             const startDate = new Date(now.getTime() - (rangeInDays * 24 * 60 * 60 * 1000));
@@ -332,7 +332,7 @@ const Newsletters: React.FC = () => {
         }
 
         // Convert to the required format - already in the correct format
-        return deltas;
+        return values;
     }, [subscriberStatsData, range]);
 
     // Create avgsData from newsletter stats for the bar charts
@@ -374,7 +374,7 @@ const Newsletters: React.FC = () => {
             </StatsHeader>
             <StatsView isLoading={false} loadingComponent={<></>}>
                 <>
-                    <Card>
+                    <Card data-testid='newsletters-card'>
                         <CardContent>
                             <NewsletterKPIs
                                 avgsData={avgsData}

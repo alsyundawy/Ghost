@@ -19,15 +19,15 @@ const Sidebar:React.FC = () => {
     return (
         <div className='grow py-8 pr-0'>
             <RightSidebarMenu>
-                <RightSidebarMenuLink active={location.pathname === `/analytics/beta/${postId}`} onClick={() => {
-                    navigate(`/analytics/beta/${postId}`);
+                <RightSidebarMenuLink active={location.pathname === `/posts/analytics/${postId}`} onClick={() => {
+                    navigate(`/posts/analytics/${postId}`);
                 }}>
                     <LucideIcon.LayoutTemplate size={16} strokeWidth={1.25} />
                     Overview
                 </RightSidebarMenuLink>
                 {!post?.email_only && (
-                    <RightSidebarMenuLink active={location.pathname === `/analytics/beta/${postId}/web`} onClick={() => {
-                        navigate(`/analytics/beta/${postId}/web`);
+                    <RightSidebarMenuLink active={location.pathname === `/posts/analytics/${postId}/web`} onClick={() => {
+                        navigate(`/posts/analytics/${postId}/web`);
                     }}>
                         <LucideIcon.MousePointer size={16} strokeWidth={1.25} />
                         Web
@@ -35,16 +35,16 @@ const Sidebar:React.FC = () => {
                 )}
 
                 {hasBeenEmailed && (
-                    <RightSidebarMenuLink active={location.pathname === `/analytics/beta/${postId}/newsletter`} onClick={() => {
-                        navigate(`/analytics/beta/${postId}/newsletter`);
+                    <RightSidebarMenuLink active={location.pathname === `/posts/analytics/${postId}/newsletter`} onClick={() => {
+                        navigate(`/posts/analytics/${postId}/newsletter`);
                     }}>
                         <LucideIcon.Mail size={16} strokeWidth={1.25} />
                         Newsletter
                     </RightSidebarMenuLink>
                 )}
 
-                <RightSidebarMenuLink active={location.pathname === `/analytics/beta/${postId}/growth`} onClick={() => {
-                    navigate(`/analytics/beta/${postId}/growth`);
+                <RightSidebarMenuLink active={location.pathname === `/posts/analytics/${postId}/growth`} onClick={() => {
+                    navigate(`/posts/analytics/${postId}/growth`);
                 }}>
                     <LucideIcon.Sprout size={16} strokeWidth={1.25} />
                 Growth
