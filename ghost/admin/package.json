@@ -144,13 +144,13 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "reframe.js": "4.0.2",
-    "semver": "7.7.3",
+    "semver": "7.7.4",
     "sentry-testkit": "5.0.10",
     "sinon-chai": "4.0.1",
     "testem": "3.16.0",
     "tracked-built-ins": "3.4.0",
     "util": "0.12.5",
-    "validator": "13.12.0",
+    "validator": "13.15.22",
     "walk-sync": "3.0.0"
   },
   "ember-addon": {
@@ -177,7 +177,7 @@
     "i18n-iso-countries": "7.14.0",
     "lru-cache": "6.0.0",
     "path-browserify": "1.0.1",
-    "webpack": "5.102.1"
+    "webpack": "5.104.1"
   },
   "nx": {
     "targets": {
