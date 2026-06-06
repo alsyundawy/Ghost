@@ -1,4 +1,5 @@
 import {H1} from './heading';
+import {Inline} from '@/components/primitives';
 import {cn} from '@/lib/utils';
 import {cva, VariantProps} from 'class-variance-authority';
 
@@ -8,62 +9,83 @@ type PropsWithChildrenAndClassName = React.PropsWithChildren & {
     className?: string;
 };
 
-interface HeaderAboveProps extends PropsWithChildrenAndClassName {}
-function HeaderAbove({className, children}: HeaderAboveProps) {
+function HeaderAbove({className, children}: PropsWithChildrenAndClassName) {
     return (
-        <div className={cn('flex items-center gap-2 [grid-area:above]', className)}>
+        <Inline
+            align='center'
+            className={cn('[grid-area:above]', className)}
+            data-header='header-above'
+            gap='sm'
+        >
             {children}
-        </div>
+        </Inline>
     );
 }
 
-interface HeaderTitleProps extends PropsWithChildrenAndClassName {}
-function HeaderTitle({className, children}: HeaderTitleProps) {
+function HeaderTitle({className, children}: PropsWithChildrenAndClassName) {
     return (
         <H1
             className={cn(
                 'text-2xl leading-[1.2em] lg:text-3xl [grid-area:title]',
                 className
             )}
+            data-header='header-title'
         >
             {children}
         </H1>
     );
 }
 
-interface HeaderMetaProps extends PropsWithChildrenAndClassName {}
-function HeaderMeta({className, children}: HeaderMetaProps) {
+function HeaderMeta({className, children}: PropsWithChildrenAndClassName) {
     return (
-        <div className={cn('flex items-center justify-start text-muted-foreground [grid-area:meta] pb-4 pt-1', className)}>
+        <Inline
+            align='center'
+            className={cn('text-muted-foreground [grid-area:meta] pb-4 pt-1', className)}
+            data-header='header-meta'
+            gap='none'
+            justify='start'
+        >
             {children}
-        </div>
+        </Inline>
     );
 }
 
-interface HeaderActionGroupProps extends PropsWithChildrenAndClassName {}
-function HeaderActionGroup({className, children}: HeaderActionGroupProps) {
+function HeaderActionGroup({className, children}: PropsWithChildrenAndClassName) {
     return (
-        <div className={cn('flex items-center gap-2', className)}>
+        <Inline
+            align='center'
+            className={className}
+            data-header='header-action-group'
+            gap='sm'
+        >
             {children}
-        </div>
+        </Inline>
     );
 }
 
-interface HeaderActionsProps extends PropsWithChildrenAndClassName {}
-function HeaderActions({className, children}: HeaderActionsProps) {
+function HeaderActions({className, children}: PropsWithChildrenAndClassName) {
     return (
-        <div className={cn('flex items-center gap-4 [grid-area:actions] sm:justify-self-end self-start', className)}>
+        <Inline
+            align='center'
+            className={cn('[grid-area:actions] sm:justify-self-end self-start', className)}
+            data-header='header-actions'
+            gap='lg'
+        >
             {children}
-        </div>
+        </Inline>
     );
 }
 
-interface HeaderNavProps extends PropsWithChildrenAndClassName {}
-function HeaderNav({className, children}: HeaderNavProps) {
+function HeaderNav({className, children}: PropsWithChildrenAndClassName) {
     return (
-        <div className={cn('flex items-center gap-2 [grid-area:nav] self-start mt-2 lg:mt-0.5', className)}>
+        <Inline
+            align='center'
+            className={cn('[grid-area:nav] self-start mt-2 lg:mt-0.5', className)}
+            data-header='header-nav'
+            gap='sm'
+        >
             {children}
-        </div>
+        </Inline>
     );
 }
 
@@ -71,27 +93,47 @@ const headerVariants = cva(`sticky top-0 z-50 -mb-4 grid gap-x-4 bg-gradient-to-
     variants: {
         variant: {
             default: `lg:[grid-template-areas:'above_above''title_actions''meta_actions''nav_nav']`,
-            'inline-nav': `lg:[grid-template-areas:'above_above_above''title_nav_actions''meta_nav_actions'] lg:[grid-template-columns:1fr_auto_auto]`
+            'inline-nav': `lg:[grid-template-columns:1fr_auto_auto] lg:[grid-template-areas:'above_above_above''title_nav_actions''meta_nav_actions']`
         }
     },
     defaultVariants: {
         variant: 'default'
     }
 });
-interface HeaderProps extends PropsWithChildrenAndClassName, VariantProps<typeof headerVariants> {}
-function Header({className, children, variant}: HeaderProps) {
-    return (
-        <header className={cn(headerVariants({variant, className}))}>
-            {children}
-        </header>
-    );
-}
 
-Header.Above = HeaderAbove;
-Header.Title = HeaderTitle;
-Header.Actions = HeaderActions;
-Header.ActionGroup = HeaderActionGroup;
-Header.Nav = HeaderNav;
-Header.Meta = HeaderMeta;
+interface HeaderProps extends PropsWithChildrenAndClassName, VariantProps<typeof headerVariants> {}
+type HeaderComponent = React.ForwardRefExoticComponent<HeaderProps & React.RefAttributes<HTMLElement>> & {
+    Above: typeof HeaderAbove;
+    Title: typeof HeaderTitle;
+    Actions: typeof HeaderActions;
+    ActionGroup: typeof HeaderActionGroup;
+    Nav: typeof HeaderNav;
+    Meta: typeof HeaderMeta;
+};
+
+/**
+ * @deprecated Prefer composing new header shells with `Grid`, `Inline`, `Stack`, and `Text` primitives.
+ */
+const Header: HeaderComponent = Object.assign(
+    React.forwardRef<HTMLElement, HeaderProps>(function Header({className, children, variant}, ref) {
+        return (
+            <header
+                ref={ref}
+                className={cn(headerVariants({variant, className}))}
+                data-header='header'
+            >
+                {children}
+            </header>
+        );
+    }),
+    {
+        Above: HeaderAbove,
+        Title: HeaderTitle,
+        Actions: HeaderActions,
+        ActionGroup: HeaderActionGroup,
+        Nav: HeaderNav,
+        Meta: HeaderMeta
+    }
+);
 
 export {Header, HeaderActions, HeaderTitle, HeaderNav, HeaderMeta};

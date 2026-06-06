@@ -1,20 +1,9 @@
-import BlueskySharing from '@views/Preferences/components/BlueskySharing';
-import Error from '@components/layout/Error';
-import Explore from '@views/Explore';
-import Feed from './views/Feed/Feed';
-import Inbox from '@views/Inbox';
-import Moderation from '@views/Preferences/components/Moderation';
-import Note from './views/Feed/Note';
-import Notifications from '@views/Notifications';
-import Onboarding from '@components/layout/Onboarding';
-import OnboardingStep1 from '@components/layout/Onboarding/Step1';
-import OnboardingStep2 from '@components/layout/Onboarding/Step2';
-import OnboardingStep3 from '@components/layout/Onboarding/Step3';
-import Preferences from '@views/Preferences';
-import Profile from '@views/Profile';
-import {Navigate, RouteObject} from '@tryghost/admin-x-framework';
+import AppError from '@components/layout/error';
 
-export const APP_ROUTE_PREFIX = '/activitypub';
+import {Navigate, Outlet, RouteObject, lazyComponent} from '@tryghost/admin-x-framework';
+
+const basePath = import.meta.env.VITE_TEST ? '' : 'activitypub';
+const accountMigrationPath = 'preferences/move';
 
 export type CustomRouteObject = RouteObject & {
     pageTitle?: string;
@@ -24,9 +13,11 @@ export type CustomRouteObject = RouteObject & {
 
 export const routes: CustomRouteObject[] = [
     {
-        // Root route configuration
-        path: '',
-        errorElement: <Error />, // This will catch all errors in child routes
+        // Root route that defines the app's base path
+        path: basePath,
+        element: <Outlet />,
+        errorElement: <AppError />, // This will catch all errors in child routes
+        handle: 'activitypub-basepath',
         children: [
             {
                 index: true,
@@ -42,78 +33,89 @@ export const routes: CustomRouteObject[] = [
             },
             {
                 path: 'reader',
-                element: <Inbox />,
+                lazy: lazyComponent(() => import('./views/inbox')),
                 pageTitle: 'Reader'
             },
             {
                 path: 'reader/:postId',
-                element: <Inbox />,
+                lazy: lazyComponent(() => import('./views/inbox')),
                 pageTitle: 'Reader'
             },
             {
                 path: 'notes',
-                element: <Feed />,
+                lazy: lazyComponent(() => import('./views/feed/feed')),
                 pageTitle: 'Notes'
             },
             {
                 path: 'notes/:postId',
-                element: <Note />,
+                lazy: lazyComponent(() => import('./views/feed/note')),
                 pageTitle: 'Note'
             },
             {
                 path: 'notifications',
-                element: <Notifications />,
+                lazy: lazyComponent(() => import('./views/notifications')),
                 pageTitle: 'Notifications'
             },
             {
                 path: 'explore',
-                element: <Explore />,
+                lazy: lazyComponent(() => import('./views/explore')),
+                pageTitle: 'Explore'
+            },
+            {
+                path: 'explore/:topic',
+                lazy: lazyComponent(() => import('./views/explore')),
                 pageTitle: 'Explore'
             },
             {
                 path: 'profile',
-                element: <Profile />,
+                lazy: lazyComponent(() => import('./views/profile')),
                 pageTitle: 'Profile'
             },
             {
                 path: 'profile/likes',
-                element: <Profile />,
+                lazy: lazyComponent(() => import('./views/profile')),
                 pageTitle: 'Profile'
             },
             {
                 path: 'profile/following',
-                element: <Profile />,
+                lazy: lazyComponent(() => import('./views/profile')),
                 pageTitle: 'Profile'
             },
             {
                 path: 'profile/followers',
-                element: <Profile />,
+                lazy: lazyComponent(() => import('./views/profile')),
                 pageTitle: 'Profile'
             },
             {
                 path: 'profile/:handle/:tab?',
-                element: <Profile />,
+                lazy: lazyComponent(() => import('./views/profile')),
                 pageTitle: 'Profile'
             },
             {
                 path: 'preferences',
-                element: <Preferences />,
+                lazy: lazyComponent(() => import('./views/preferences')),
                 pageTitle: 'Preferences'
             },
             {
                 path: 'preferences/moderation',
-                element: <Moderation />,
+                lazy: lazyComponent(() => import('./views/preferences/components/moderation')),
                 pageTitle: 'Moderation',
                 showBackButton: true
             },
             {
                 path: 'preferences/bluesky-sharing',
-                element: <BlueskySharing />,
+                lazy: lazyComponent(() => import('./views/preferences/components/bluesky-sharing')),
+                showBackButton: true
+            },
+            {
+                path: accountMigrationPath,
+                lazy: lazyComponent(() => import('./views/preferences/components/account-migration')),
+                pageTitle: 'Account migration',
                 showBackButton: true
             },
             {
                 path: 'welcome',
-                element: <Onboarding />,
+                lazy: lazyComponent(() => import('./components/layout/onboarding')),
                 pageTitle: 'Welcome',
                 children: [
                     {
@@ -122,15 +124,15 @@ export const routes: CustomRouteObject[] = [
                     },
                     {
                         path: '1',
-                        element: <OnboardingStep1 />
+                        lazy: lazyComponent(() => import('./components/layout/onboarding/step-1'))
                     },
                     {
                         path: '2',
-                        element: <OnboardingStep2 />
+                        lazy: lazyComponent(() => import('./components/layout/onboarding/step-2'))
                     },
                     {
                         path: '3',
-                        element: <OnboardingStep3 />
+                        lazy: lazyComponent(() => import('./components/layout/onboarding/step-3'))
                     },
                     {
                         path: '*',
@@ -140,7 +142,7 @@ export const routes: CustomRouteObject[] = [
             },
             {
                 path: '*',
-                element: <Error />
+                lazy: lazyComponent(() => import('./components/layout/error'))
             }
         ]
     }

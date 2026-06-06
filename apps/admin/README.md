@@ -12,8 +12,16 @@ Uses an **Ember Bridge** system for smooth migration:
 ## Development
 
 ```bash
-# Start development server
-yarn dev 
+# Start development server (from monorepo root)
+pnpm dev
 ```
 
-**Prerequisites:** Ghost and the existing Ember admin must be running on `localhost:2368` for API proxying.
+## Building for Production
+
+```bash
+# Build production bundle
+pnpm nx run @tryghost/admin:build
+```
+
+This outputs to `apps/admin/dist/` and updates the assets in `ghost/core/core/built/admin/`.
+

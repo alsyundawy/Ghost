@@ -6,6 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "types": ["node", "vitest/globals"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -15,6 +16,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@test-utils/*": ["./test-utils/*"],
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -23,5 +31,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src", "test-utils"],
+  "references": [
+    { "path": "../admin-x-framework/tsconfig.declaration.json" },
+    { "path": "../posts/tsconfig.declaration.json" },
+    { "path": "../stats/tsconfig.declaration.json" },
+    { "path": "../activitypub/tsconfig.declaration.json" }
+  ]
 }

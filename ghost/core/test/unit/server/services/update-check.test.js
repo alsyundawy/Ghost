@@ -1,13 +1,12 @@
-require('should');
 const sinon = require('sinon');
 const nock = require('nock');
 const moment = require('moment');
 const crypto = require('crypto');
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 const util = require('util');
 const logging = require('@tryghost/logging');
 const request = require('@tryghost/request');
-const UpdateCheckService = require('../../../../core/server/services/update-check/UpdateCheckService');
+const UpdateCheckService = require('../../../../core/server/services/update-check/update-check-service');
 
 describe('Update Check', function () {
     const internal = {context: {internal: true}};
@@ -79,7 +78,7 @@ describe('Update Check', function () {
 
             await updateCheckService.check();
 
-            scope.isDone().should.equal(true);
+            assert.equal(scope.isDone(), true);
         });
 
         it('update check won\'t happen if it\'s too early', async function () {
@@ -101,7 +100,7 @@ describe('Update Check', function () {
 
             await updateCheckService.check();
 
-            requestStub.called.should.equal(false);
+            sinon.assert.notCalled(requestStub);
         });
 
         it('update check will happen if it\'s time to check', async function () {
@@ -145,7 +144,7 @@ describe('Update Check', function () {
 
             await updateCheckService.check();
 
-            scope.isDone().should.equal(true);
+            assert.equal(scope.isDone(), true);
         });
     });
 
@@ -206,19 +205,19 @@ describe('Update Check', function () {
 
             await updateCheckService.check();
 
-            scope.isDone().should.equal(true);
+            assert.equal(scope.isDone(), true);
 
-            capturedData.ghost_version.should.equal('4.0.0');
-            capturedData.node_version.should.equal(process.versions.node);
-            capturedData.env.should.equal(process.env.NODE_ENV);
-            capturedData.database_type.should.match(/sqlite3|mysql/);
-            capturedData.blog_id.should.be.a.String();
-            capturedData.blog_id.should.not.be.empty();
-            capturedData.theme.should.be.equal('casperito');
-            capturedData.blog_created_at.should.equal(819846900);
-            capturedData.user_count.should.be.equal(2);
-            capturedData.post_count.should.be.equal(13);
-            capturedData.npm_version.should.be.equal('10.8.2');
+            assert.equal(capturedData.ghost_version, '4.0.0');
+            assert.equal(capturedData.node_version, process.versions.node);
+            assert.equal(capturedData.env, process.env.NODE_ENV);
+            assert.match(capturedData.database_type, /sqlite3|mysql/);
+            assert.equal(typeof capturedData.blog_id, 'string');
+            assert(capturedData.blog_id);
+            assert.equal(capturedData.theme, 'casperito');
+            assert.equal(capturedData.blog_created_at, 819846900);
+            assert.equal(capturedData.user_count, 2);
+            assert.equal(capturedData.post_count, 13);
+            assert.equal(capturedData.npm_version, '10.8.2');
         });
     });
 
@@ -281,27 +280,60 @@ describe('Update Check', function () {
 
             await updateCheckService.check();
 
-            notificationsAPIAddStub.calledOnce.should.equal(true);
-            notificationsAPIAddStub.args[0][0].notifications.length.should.equal(1);
+            sinon.assert.calledOnce(notificationsAPIAddStub);
+            assert.equal(notificationsAPIAddStub.args[0][0].notifications.length, 1);
 
             const targetNotification = notificationsAPIAddStub.args[0][0].notifications[0];
-            targetNotification.dismissible.should.eql(notification.messages[0].dismissible);
-            targetNotification.id.should.eql(notification.messages[0].id);
-            targetNotification.top.should.eql(notification.messages[0].top);
-            targetNotification.type.should.eql('info');
-            targetNotification.message.should.eql(notification.messages[0].content);
+            assert.equal(targetNotification.dismissible, notification.messages[0].dismissible);
+            assert.equal(targetNotification.id, notification.messages[0].id);
+            assert.equal(targetNotification.top, notification.messages[0].top);
+            assert.equal(targetNotification.type, 'info');
+            assert.equal(targetNotification.message, notification.messages[0].content);
 
-            usersBrowseStub.calledTwice.should.eql(true);
+            // users.browse is called once here, for stats reporting: this
+            // notification is non-alert, so the admin-lookup query in the
+            // alert branch never runs.
+            sinon.assert.calledOnce(usersBrowseStub);
+        });
 
-            // Second (non statistical) call should be looking for admin users with an 'active' status only
-            usersBrowseStub.args[1][0].should.eql({
-                limit: 'all',
-                include: ['roles'],
-                filter: 'status:active',
-                context: {
-                    internal: true
-                }
+        it('preserves custom flag value from update check response', async function () {
+            const notificationsAPIAddStub = sinon.stub().resolves();
+            const usersBrowseStub = sinon.stub().resolves({
+                users: [{
+                    roles: [{
+                        name: 'Owner'
+                    }]
+                }]
             });
+
+            const updateCheckService = new UpdateCheckService({
+                api: {
+                    users: {
+                        browse: usersBrowseStub
+                    },
+                    notifications: {
+                        add: notificationsAPIAddStub
+                    }
+                },
+                config: {
+                    siteUrl: 'https://localhost:2368/test'
+                },
+                request: requestStub
+            });
+
+            await updateCheckService.createCustomNotification({
+                custom: 0,
+                messages: [{
+                    id: crypto.randomUUID(),
+                    content: '<p>hello</p>',
+                    dismissible: true,
+                    top: true
+                }]
+            });
+
+            assert.equal(notificationsAPIAddStub.callCount, 1);
+            const targetNotification = notificationsAPIAddStub.args[0][0].notifications[0];
+            assert.equal(targetNotification.custom, 0);
         });
 
         it('should send an email for critical notification', async function () {
@@ -325,7 +357,15 @@ describe('Update Check', function () {
                 });
 
             const notificationsAPIAddStub = sinon.stub().resolves();
-            const sendEmailStub = sinon.stub().resolves();
+            const emailSendStub = sinon.stub().resolves();
+            const usersBrowseStub = sinon.stub().resolves({
+                users: [{
+                    email: 'jbloggs@example.com',
+                    roles: [{
+                        name: 'Owner'
+                    }]
+                }]
+            });
 
             const updateCheckService = new UpdateCheckService({
                 api: {
@@ -334,14 +374,7 @@ describe('Update Check', function () {
                         edit: settingsStub
                     },
                     users: {
-                        browse: sinon.stub().resolves({
-                            users: [{
-                                email: 'jbloggs@example.com',
-                                roles: [{
-                                    name: 'Owner'
-                                }]
-                            }]
-                        })
+                        browse: usersBrowseStub
                     },
                     posts: {
                         browse: sinon.stub().resolves()
@@ -357,19 +390,27 @@ describe('Update Check', function () {
                     ghostVersion: '0.8.0'
                 },
                 request: request,
-                sendEmail: sendEmailStub
+                notificationEmailService: {send: emailSendStub}
             });
 
             await updateCheckService.check();
 
-            sendEmailStub.called.should.be.true();
-            sendEmailStub.args[0][0].to.should.equal('jbloggs@example.com');
-            sendEmailStub.args[0][0].subject.should.equal('Action required: Critical alert from Ghost instance http://127.0.0.1:2369');
-            sendEmailStub.args[0][0].html.should.equal('<p>Critical message. Upgrade your site!</p>');
-            sendEmailStub.args[0][0].forceTextContent.should.equal(true);
+            sinon.assert.calledOnce(emailSendStub);
+            assert.deepEqual(emailSendStub.args[0][0].to, ['jbloggs@example.com']);
+            assert.equal(emailSendStub.args[0][0].subject, 'Action required: Critical alert from Ghost instance http://127.0.0.1:2369');
+            assert.equal(emailSendStub.args[0][0].content, '<p>Critical message. Upgrade your site!</p>');
 
-            notificationsAPIAddStub.calledOnce.should.equal(true);
-            notificationsAPIAddStub.args[0][0].notifications.length.should.equal(1);
+            // users.browse is called twice: once for stats reporting, once for
+            // the admin lookup. The second call pushes the role filter into
+            // NQL so the DB returns only Owner/Administrator users.
+            sinon.assert.calledTwice(usersBrowseStub);
+            assert.deepEqual(usersBrowseStub.args[1][0], {
+                filter: 'status:active+roles.name:[Owner,Administrator]',
+                context: {internal: true}
+            });
+
+            sinon.assert.calledOnce(notificationsAPIAddStub);
+            assert.equal(notificationsAPIAddStub.args[0][0].notifications.length, 1);
         });
 
         it('not create a notification if the check response has no messages', async function () {
@@ -417,7 +458,7 @@ describe('Update Check', function () {
 
             await updateCheckService.check();
 
-            notificationsAPIAddStub.calledOnce.should.equal(false);
+            sinon.assert.notCalled(notificationsAPIAddStub);
         });
     });
 
@@ -434,10 +475,10 @@ describe('Update Check', function () {
 
             updateCheckService.updateCheckError({});
 
-            settingsStub.called.should.be.true();
-            logging.error.called.should.be.true();
-            logging.error.args[0][0].context.should.equal('Checking for updates failed, your site will continue to function.');
-            logging.error.args[0][0].help.should.equal('If you get this error repeatedly, please seek help from https://ghost.org/docs/');
+            sinon.assert.called(settingsStub);
+            sinon.assert.called(logging.error);
+            assert.equal(logging.error.args[0][0].context, 'Checking for updates failed, your site will continue to function.');
+            assert.equal(logging.error.args[0][0].help, 'If you get this error repeatedly, please seek help from https://ghost.org/docs/');
         });
 
         it('logs and rethrows an error when error with rethrow configuration', function () {
@@ -456,12 +497,12 @@ describe('Update Check', function () {
                 updateCheckService.updateCheckError({});
                 assert.fail('should have thrown');
             } catch (e) {
-                settingsStub.called.should.be.true();
-                logging.error.called.should.be.true();
-                logging.error.args[0][0].context.should.equal('Checking for updates failed, your site will continue to function.');
-                logging.error.args[0][0].help.should.equal('If you get this error repeatedly, please seek help from https://ghost.org/docs/');
+                sinon.assert.called(settingsStub);
+                sinon.assert.called(logging.error);
+                assert.equal(logging.error.args[0][0].context, 'Checking for updates failed, your site will continue to function.');
+                assert.equal(logging.error.args[0][0].help, 'If you get this error repeatedly, please seek help from https://ghost.org/docs/');
 
-                e.context.should.equal('Checking for updates failed, your site will continue to function.');
+                assert.equal(e.context, 'Checking for updates failed, your site will continue to function.');
             }
         });
     });

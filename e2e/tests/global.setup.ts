@@ -1,7 +1,10 @@
+import {getEnvironmentManager} from '@/helpers/environment';
 import {test as setup} from '@playwright/test';
-import {EnvironmentManager} from '../helpers/environment';
+
+const TIMEOUT = 2 * 60 * 1000; // 2 minutes
 
 setup('global environment setup', async () => {
-    const environmentManager = new EnvironmentManager();
-    await environmentManager.globalSetup();
+    setup.setTimeout(TIMEOUT);
+    const manager = await getEnvironmentManager();
+    await manager.globalSetup();
 });

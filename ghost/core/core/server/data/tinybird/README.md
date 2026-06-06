@@ -37,9 +37,9 @@ docker compose run --rm -it tb-cli tb dev
 #### Requirements
 
 In order to use Tinybird locally, make sure to install the Tinybird CLI.
-**Only for the first time, run:** `yarn tb:install` from the root folder.
+**Only for the first time, run:** `pnpm tb:install` from the root folder.
 
-To run Tinybird locally, run `yarn tb` from root. 
+To run Tinybird locally, run `pnpm tb` from root. 
 
 #### Connecting Tinybird to Ghost config file
 
@@ -78,6 +78,8 @@ Sample config:
             //  -- optional override for site uuid
             // "id": "106a623d-9792-4b63-acde-4a0c28ead3dc",
             "endpoint": "https://api.tinybird.co",
+            // -- optional endpoint version suffix (e.g., "v2" calls api_kpis_v2 instead of api_kpis)
+            // "version": "v2",
             // -- tinybird local configuration (optional)
             "local": {
                 "enabled": true,

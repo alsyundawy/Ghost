@@ -1,25 +1,28 @@
-import {test, expect} from '../../helpers/playwright';
-import {EmailClient, MailhogClient} from '../../helpers/services/email/MailhogClient';
-import {EmailMessageBody} from '../../helpers/services/email/EmailMessageBody';
-import {signupViaPortal} from '../../helpers/playwright/flows/signup';
-import {HomePage, PublicPage} from '../../helpers/pages/public';
-import {extractMagicLink} from '../../helpers/services/email/utils';
+import {EmailClient, MailPit} from '@/helpers/services/email/mail-pit';
+import {HomePage, PublicPage} from '@/public-pages';
+import {expect, test} from '@/helpers/playwright';
+import {extractMagicLink} from '@/helpers/services/email/utils';
+import {signupViaPortal} from '@/helpers/playwright/flows/signup';
 
 test.describe('Ghost Public - Member Signup', () => {
     let emailClient: EmailClient;
 
     test.beforeEach(async () => {
-        emailClient = new MailhogClient();
+        emailClient = new MailPit();
     });
+
+    async function retrieveLatestEmailMessage(emailAddress: string, timeoutMs: number = 10000) {
+        const messages = await emailClient.searchByRecipient(emailAddress, {timeoutMs: timeoutMs});
+        return await emailClient.getMessageDetailed(messages[0]);
+    }
 
     test('signed up with magic link in email', async ({page}) => {
         const homePage = new HomePage(page);
         await homePage.goto();
         const {emailAddress} = await signupViaPortal(page);
 
-        const message = await emailClient.waitForEmail(emailAddress);
-        const emailMessageBodyParts = new EmailMessageBody(message);
-        const emailTextBody = emailMessageBodyParts.getTextContent();
+        const latestMessage = await retrieveLatestEmailMessage(emailAddress);
+        const emailTextBody = latestMessage.Text;
 
         const magicLink = extractMagicLink(emailTextBody);
         const publicPage = new PublicPage(page);
@@ -29,15 +32,13 @@ test.describe('Ghost Public - Member Signup', () => {
         await expect(homePage.accountButton).toBeVisible();
     });
 
-    test('received welcome email', async ({page}) => {
+    test('received complete the signup email', async ({page}) => {
         await new HomePage(page).goto();
         const {emailAddress} = await signupViaPortal(page);
+        const latestMessage = await retrieveLatestEmailMessage(emailAddress);
+        expect(latestMessage.Subject.toLowerCase()).toContain('complete');
 
-        const message = await emailClient.waitForEmail(emailAddress);
-        expect(message.Content.Headers.Subject[0].toLowerCase()).toContain('complete');
-
-        const emailMessageBodyParts = new EmailMessageBody(message);
-        const emailTextBody = emailMessageBodyParts.getTextContent();
+        const emailTextBody = latestMessage.Text;
         expect(emailTextBody).toContain('complete the signup process');
     });
 });

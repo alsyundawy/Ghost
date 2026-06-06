@@ -1597,8 +1597,8 @@ describe('ActivityPubAPI', function () {
         });
     });
 
-    describe('enableBluesky', function () {
-        test('It enables bluesky', async function () {
+    describe('accountAliases', function () {
+        test('It fetches account aliases', async function () {
             const fakeFetch = Fetch({
                 'https://auth.api/': {
                     response: JSONResponse({
@@ -1607,9 +1607,15 @@ describe('ActivityPubAPI', function () {
                         }]
                     })
                 },
-                [`https://activitypub.api/.ghost/activitypub/v1/actions/bluesky/enable`]: {
+                [`https://activitypub.api/.ghost/activitypub/v1/aliases`]: {
                     response: JSONResponse({
-                        handle: '@foo@bar.baz'
+                        destination: {
+                            handle: '@index@example.com',
+                            apId: 'https://example.com/.ghost/activitypub/users/index'
+                        },
+                        aliases: [{
+                            apId: 'https://mastodon.social/users/old'
+                        }]
                     })
                 }
             });
@@ -1621,12 +1627,20 @@ describe('ActivityPubAPI', function () {
                 fakeFetch
             );
 
-            const result = await api.enableBluesky();
+            const result = await api.getAccountAliases();
 
-            expect(result).toBe('@foo@bar.baz');
+            expect(result).toEqual({
+                destination: {
+                    handle: '@index@example.com',
+                    apId: 'https://example.com/.ghost/activitypub/users/index'
+                },
+                aliases: [{
+                    apId: 'https://mastodon.social/users/old'
+                }]
+            });
         });
 
-        test('It returns an empty string if the response is null', async function () {
+        test('It adds an account alias', async function () {
             const fakeFetch = Fetch({
                 'https://auth.api/': {
                     response: JSONResponse({
@@ -1635,7 +1649,152 @@ describe('ActivityPubAPI', function () {
                         }]
                     })
                 },
-                [`https://activitypub.api/.ghost/activitypub/v1/actions/bluesky/enable`]: {
+                [`https://activitypub.api/.ghost/activitypub/v1/aliases`]: {
+                    async assert(_resource, init) {
+                        expect(init?.method).toEqual('POST');
+                        expect(init?.body).toEqual('{"sourceHandle":"@old@mastodon.social"}');
+                    },
+                    response: JSONResponse({
+                        destination: {
+                            handle: '@index@example.com',
+                            apId: 'https://example.com/.ghost/activitypub/users/index'
+                        },
+                        aliases: [{
+                            apId: 'https://mastodon.social/users/old'
+                        }]
+                    })
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.addAccountAlias('@old@mastodon.social');
+
+            expect(result.aliases).toEqual([{
+                apId: 'https://mastodon.social/users/old'
+            }]);
+        });
+
+        test('It returns an empty alias response when adding an account alias has no response body', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v1/aliases`]: {
+                    response: new Response(null, {status: 204})
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.addAccountAlias('@old@mastodon.social');
+
+            expect(result).toEqual({
+                destination: {
+                    handle: '',
+                    apId: ''
+                },
+                aliases: []
+            });
+        });
+
+        test('It removes an account alias', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v1/aliases`]: {
+                    async assert(_resource, init) {
+                        expect(init?.method).toEqual('DELETE');
+                        expect(init?.body).toEqual('{"actorUri":"https://mastodon.social/users/old"}');
+                    },
+                    response: JSONResponse({
+                        destination: {
+                            handle: '@index@example.com',
+                            apId: 'https://example.com/.ghost/activitypub/users/index'
+                        },
+                        aliases: []
+                    })
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.removeAccountAlias('https://mastodon.social/users/old');
+
+            expect(result.aliases).toEqual([]);
+        });
+
+        test('It returns an empty alias response when removing an account alias has no response body', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v1/aliases`]: {
+                    response: new Response(null, {status: 204})
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.removeAccountAlias('https://mastodon.social/users/old');
+
+            expect(result).toEqual({
+                destination: {
+                    handle: '',
+                    apId: ''
+                },
+                aliases: []
+            });
+        });
+    });
+
+    describe('enableBluesky', function () {
+        test('It enables bluesky', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v2/actions/bluesky/enable`]: {
+                    async assert(_resource, init) {
+                        expect(init?.method).toEqual('POST');
+                    },
                     response: JSONResponse(null)
                 }
             });
@@ -1647,65 +1806,7 @@ describe('ActivityPubAPI', function () {
                 fakeFetch
             );
 
-            const result = await api.enableBluesky();
-
-            expect(result).toBe('');
-        });
-
-        test('It returns an empty string if the response does not contain a handle property', async function () {
-            const fakeFetch = Fetch({
-                'https://auth.api/': {
-                    response: JSONResponse({
-                        identities: [{
-                            token: 'fake-token'
-                        }]
-                    })
-                },
-                [`https://activitypub.api/.ghost/activitypub/v1/actions/bluesky/enable`]: {
-                    response: JSONResponse({
-                        foo: 'bar'
-                    })
-                }
-            });
-
-            const api = new ActivityPubAPI(
-                new URL('https://activitypub.api'),
-                new URL('https://auth.api'),
-                'index',
-                fakeFetch
-            );
-
-            const result = await api.enableBluesky();
-
-            expect(result).toBe('');
-        });
-
-        test('It returns an empty string if the response contains an invalid handle property', async function () {
-            const fakeFetch = Fetch({
-                'https://auth.api/': {
-                    response: JSONResponse({
-                        identities: [{
-                            token: 'fake-token'
-                        }]
-                    })
-                },
-                [`https://activitypub.api/.ghost/activitypub/v1/actions/bluesky/enable`]: {
-                    response: JSONResponse({
-                        handle: ['@foo@bar.baz']
-                    })
-                }
-            });
-
-            const api = new ActivityPubAPI(
-                new URL('https://activitypub.api'),
-                new URL('https://auth.api'),
-                'index',
-                fakeFetch
-            );
-
-            const result = await api.enableBluesky();
-
-            expect(result).toBe('');
+            await api.enableBluesky();
         });
     });
 
@@ -1719,7 +1820,7 @@ describe('ActivityPubAPI', function () {
                         }]
                     })
                 },
-                [`https://activitypub.api/.ghost/activitypub/v1/actions/bluesky/disable`]: {
+                [`https://activitypub.api/.ghost/activitypub/v2/actions/bluesky/disable`]: {
                     async assert(_resource, init) {
                         expect(init?.method).toEqual('POST');
                     },
@@ -1735,6 +1836,118 @@ describe('ActivityPubAPI', function () {
             );
 
             await api.disableBluesky();
+        });
+    });
+
+    describe('confirmBlueskyHandle', function () {
+        test('It confirms the bluesky handle', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v2/actions/bluesky/confirm-handle`]: {
+                    response: JSONResponse({
+                        handle: 'foo@bar.baz'
+                    })
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.confirmBlueskyHandle();
+
+            expect(result).toBe('foo@bar.baz');
+        });
+
+        test('It returns an empty string if the response is null', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v2/actions/bluesky/confirm-handle`]: {
+                    response: JSONResponse(null)
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.confirmBlueskyHandle();
+
+            expect(result).toBe('');
+        });
+
+        test('It returns an empty string if the response does not contain a handle property', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v2/actions/bluesky/confirm-handle`]: {
+                    response: JSONResponse({
+                        foo: 'bar'
+                    })
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.confirmBlueskyHandle();
+
+            expect(result).toBe('');
+        });
+
+        test('It returns an empty string if the response contains an invalid handle property', async function () {
+            const fakeFetch = Fetch({
+                'https://auth.api/': {
+                    response: JSONResponse({
+                        identities: [{
+                            token: 'fake-token'
+                        }]
+                    })
+                },
+                [`https://activitypub.api/.ghost/activitypub/v2/actions/bluesky/confirm-handle`]: {
+                    response: JSONResponse({
+                        handle: ['foo@bar.baz']
+                    })
+                }
+            });
+
+            const api = new ActivityPubAPI(
+                new URL('https://activitypub.api'),
+                new URL('https://auth.api'),
+                'index',
+                fakeFetch
+            );
+
+            const result = await api.confirmBlueskyHandle();
+
+            expect(result).toBe('');
         });
     });
 });
